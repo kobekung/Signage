@@ -35,7 +35,7 @@ export default function EditorLayout() {
     <TooltipProvider>
       <div className="flex h-screen w-screen bg-background font-body overflow-hidden">
         {isLeftSidebarOpen && <LeftSidebar />}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col min-w-0">
           <Header />
           <main className="flex flex-1 overflow-hidden">
             <div className="flex-1 relative bg-muted/40 flex flex-col">
