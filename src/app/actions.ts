@@ -20,8 +20,12 @@ export async function getWidgetDefaults(widgetType: SuggestWidgetDefaultsInput['
     if (widgetType === 'image') {
       const defaultImage = PlaceHolderImages.find(img => img.id === 'default-image-widget');
       return { 
-        imageUrl: defaultImage?.imageUrl || 'https://picsum.photos/seed/10/400/300',
-        altText: defaultImage?.description || 'Placeholder image' 
+        playlist: [{
+          id: `media-${Date.now()}`,
+          url: defaultImage?.imageUrl || 'https://picsum.photos/seed/10/400/300',
+          type: 'image',
+          duration: 10
+        }]
       };
     }
     return {};

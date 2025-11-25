@@ -1,4 +1,11 @@
-export type WidgetType = 'text' | 'clock' | 'image';
+export type WidgetType = 'text' | 'clock' | 'image' | 'video';
+
+export interface PlaylistItem {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+  duration: number; // in seconds
+}
 
 export interface TextWidgetProperties {
   content: string;
@@ -7,8 +14,7 @@ export interface TextWidgetProperties {
 }
 
 export interface ImageWidgetProperties {
-  imageUrl: string;
-  altText: string;
+  playlist: PlaylistItem[];
 }
 
 export interface ClockWidgetProperties {
@@ -32,7 +38,7 @@ export interface Widget<T extends WidgetProperties = WidgetProperties> {
 }
 
 export interface Layout {
-  id: string;
+  id:string;
   name: string;
   width: number;
   height: number;

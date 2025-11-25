@@ -111,6 +111,7 @@ export const useEditor = () => {
     dispatch({ type: 'SET_WIDGET_LOADING', payload: true });
     try {
       const properties = await getWidgetDefaults(type);
+      
       const newWidget: Widget = {
         id: `widget-${Date.now()}`,
         type,
@@ -122,10 +123,14 @@ export const useEditor = () => {
         properties: { ...properties },
       };
 
-      if (type === 'image' && !newWidget.properties.imageUrl) {
+      if (type === 'image' && !newWidget.properties.playlist) {
         const defaultImage = PlaceHolderImages.find(img => img.id === 'default-image-widget');
-        newWidget.properties.imageUrl = defaultImage?.imageUrl || 'https://picsum.photos/seed/10/400/300';
-        newWidget.properties.altText = defaultImage?.description || 'Default placeholder image';
+        newWidget.properties.playlist = [{
+          id: `media-${Date.now()}`,
+          url: defaultImage?.imageUrl || 'https://picsum.photos/seed/10/400/300',
+          type: 'image',
+          duration: 10
+        }];
       }
 
       dispatch({ type: 'ADD_WIDGET', payload: newWidget });

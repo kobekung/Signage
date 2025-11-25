@@ -48,8 +48,11 @@ export const mockLayout: Layout = {
       height: 360,
       zIndex: 1,
       properties: {
-        imageUrl: initialImage?.imageUrl || 'https://picsum.photos/seed/1/640/360',
-        altText: initialImage?.description || 'Placeholder image',
+        playlist: [
+          { id: 'media-1', url: 'https://picsum.photos/seed/101/640/360', type: 'image', duration: 5 },
+          { id: 'media-2', url: 'https://picsum.photos/seed/102/640/360', type: 'image', duration: 10 },
+          { id: 'media-3', url: 'https://picsum.photos/seed/103/640/360', type: 'image', duration: 5 },
+        ]
       },
     },
   ],
