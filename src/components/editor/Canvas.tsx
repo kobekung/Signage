@@ -30,7 +30,7 @@ export default function Canvas() {
     
     // Cleanup
     return () => window.removeEventListener('resize', resizeCanvas);
-  }, [layout]);
+  }, [layout, useEditorStore.getState().layout?.width, useEditorStore.getState().layout?.height]); // Re-run on sidebar toggle
 
 
   if (!layout) {
