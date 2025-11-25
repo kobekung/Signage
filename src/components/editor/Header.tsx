@@ -1,5 +1,5 @@
 'use client';
-import { useEditor } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,10 +11,10 @@ import { Eye, Plus, Tv, Clock, Image as ImageIcon, Loader2, Newspaper } from 'lu
 import { WidgetType } from '@/lib/types';
 
 export default function Header() {
-  const { layout, dispatch, addWidget, isWidgetLoading } = useEditor();
+  const { layout, addNewWidget, isWidgetLoading, togglePreviewMode } = useEditorStore();
 
   const handleAddWidget = (type: WidgetType) => {
-    addWidget(type);
+    addNewWidget(type);
   };
 
   return (
@@ -56,7 +56,7 @@ export default function Header() {
 
         <Button
           variant="outline"
-          onClick={() => dispatch({ type: 'TOGGLE_PREVIEW_MODE' })}
+          onClick={togglePreviewMode}
         >
           <Eye />
           Preview

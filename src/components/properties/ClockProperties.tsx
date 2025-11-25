@@ -1,6 +1,6 @@
 'use client';
 import { Widget, ClockWidgetProperties } from '@/lib/types';
-import { useEditorDispatch } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,17 +12,20 @@ interface ClockPropertiesProps {
 }
 
 export default function ClockProperties({ widget }: ClockPropertiesProps) {
-  const dispatch = useEditorDispatch();
+  const updateWidgetProperties = useEditorStore(state => state.updateWidgetProperties);
   
-  const debouncedDispatch = useDebouncedCallback((payload) => {
-    dispatch({ type: 'UPDATE_WIDGET_PROPERTIES', payload });
-  }, 300);
-
-  const updateProperties = (newProps: Partial<ClockWidgetProperties>) => {
-    debouncedDispatch({
+  const debouncedUpdate = useDebouncedCallback((newProps: Partial<ClockWidgetProperties>) => {
+    updateWidgetProperties({
       id: widget.id,
       properties: { ...widget.properties, ...newProps },
     });
+  }, 300);
+
+  const updateProperties = (newProps: Partial<ClockWidgetProperties>) => {
+    // Optimistic UI update
+    Object.assign(widget.properties, newProps);
+    // Debounced state update
+    debouncedUpdate(newProps);
   };
 
   return (

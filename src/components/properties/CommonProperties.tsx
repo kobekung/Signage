@@ -1,7 +1,7 @@
 'use client';
 
 import { Widget } from '@/lib/types';
-import { useEditorDispatch } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -10,22 +10,17 @@ interface CommonPropertiesProps {
 }
 
 export default function CommonProperties({ widget }: CommonPropertiesProps) {
-  const dispatch = useEditorDispatch();
+  const updateWidgetPosition = useEditorStore(state => state.updateWidgetPosition);
+  const updateWidgetSize = useEditorStore(state => state.updateWidgetSize);
 
   const handlePositionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    dispatch({
-      type: 'UPDATE_WIDGET_POSITION',
-      payload: { ...widget, id: widget.id, [name]: Number(value) },
-    });
+    updateWidgetPosition({ ...widget, id: widget.id, [name]: Number(value) });
   };
 
   const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    dispatch({
-      type: 'UPDATE_WIDGET_SIZE',
-      payload: { ...widget, id: widget.id, [name]: Number(value) },
-    });
+    updateWidgetSize({ ...widget, id: widget.id, [name]: Number(value) });
   };
 
   return (

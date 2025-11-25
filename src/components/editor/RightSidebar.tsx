@@ -1,11 +1,12 @@
 'use client';
 
-import { useEditorState } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 import PropertiesPanel from '@/components/properties/PropertiesPanel';
 import { ScrollArea } from '../ui/scroll-area';
 
 export default function RightSidebar() {
-  const { selectedWidgetId, layout } = useEditorState();
+  const selectedWidgetId = useEditorStore(state => state.selectedWidgetId);
+  const layout = useEditorStore(state => state.layout);
 
   const selectedWidget = layout?.widgets.find(w => w.id === selectedWidgetId);
 

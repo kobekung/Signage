@@ -5,17 +5,17 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Layout } from '@/lib/types';
 import WidgetRenderer from '@/components/widgets/WidgetRenderer';
-import { useEditorDispatch } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 
 interface PlayerProps {
   layout: Layout;
 }
 
 export default function Player({ layout }: PlayerProps) {
-  const dispatch = useEditorDispatch();
+  const togglePreviewMode = useEditorStore(state => state.togglePreviewMode);
 
   const exitPreview = () => {
-    dispatch({ type: 'TOGGLE_PREVIEW_MODE' });
+    togglePreviewMode();
   };
 
   useEffect(() => {

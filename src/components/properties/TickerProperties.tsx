@@ -1,6 +1,6 @@
 'use client';
 import { Widget, TickerWidgetProperties } from '@/lib/types';
-import { useEditorDispatch } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,17 +13,20 @@ interface TickerPropertiesProps {
 }
 
 export default function TickerProperties({ widget }: TickerPropertiesProps) {
-  const dispatch = useEditorDispatch();
+  const updateWidgetProperties = useEditorStore(state => state.updateWidgetProperties);
   
-  const debouncedDispatch = useDebouncedCallback((payload) => {
-    dispatch({ type: 'UPDATE_WIDGET_PROPERTIES', payload });
-  }, 300);
-
-  const updateProperties = (newProps: Partial<TickerWidgetProperties>) => {
-    debouncedDispatch({
+  const debouncedDispatch = useDebouncedCallback((newProps: Partial<TickerWidgetProperties>) => {
+    updateWidgetProperties({
       id: widget.id,
       properties: { ...widget.properties, ...newProps },
     });
+  }, 300);
+
+  const updateProperties = (newProps: Partial<TickerWidgetProperties>) => {
+     // Optimistic UI update
+    Object.assign(widget.properties, newProps);
+    // Debounced state update
+    debouncedDispatch(newProps);
   };
 
   return (

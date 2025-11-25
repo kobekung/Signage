@@ -6,6 +6,9 @@ import { mockLayout } from '@/lib/mock-data';
 import { getWidgetDefaults } from '@/app/actions';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
+// This context is now deprecated and will be removed in a future refactoring.
+// Please use the Zustand store in `src/stores/index.ts` instead.
+
 type State = {
   layout: Layout | null;
   selectedWidgetId: string | null;

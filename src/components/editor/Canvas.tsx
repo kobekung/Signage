@@ -1,12 +1,12 @@
 'use client';
 import { Rnd } from 'react-rnd';
-import { useEditor } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 import WidgetRenderer from '@/components/widgets/WidgetRenderer';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
 export default function Canvas() {
-  const { layout, selectedWidgetId, dispatch } = useEditor();
+  const { layout, selectedWidgetId, selectWidget, updateWidgetPosition, updateWidgetSize } = useEditorStore();
   const [aspectRatio, setAspectRatio] = useState(16 / 9);
 
   useEffect(() => {
@@ -20,22 +20,16 @@ export default function Canvas() {
   }
 
   const handleDragStop = (id: string, d: any) => {
-    dispatch({ type: 'UPDATE_WIDGET_POSITION', payload: { id, x: d.x, y: d.y } });
+    updateWidgetPosition({ id, x: d.x, y: d.y });
   };
 
   const handleResizeStop = (id: string, ref: any, position: any) => {
-    dispatch({
-      type: 'UPDATE_WIDGET_SIZE',
-      payload: {
-        id,
-        width: ref.offsetWidth,
-        height: ref.offsetHeight,
-      },
+    updateWidgetSize({
+      id,
+      width: ref.offsetWidth,
+      height: ref.offsetHeight,
     });
-    dispatch({
-      type: 'UPDATE_WIDGET_POSITION',
-      payload: { id, x: position.x, y: position.y },
-    });
+    updateWidgetPosition({ id, x: position.x, y: position.y });
   };
 
   return (
@@ -60,7 +54,7 @@ export default function Canvas() {
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              dispatch({ type: 'SELECT_WIDGET', payload: null });
+              selectWidget(null);
             }
           }}
         >
@@ -80,7 +74,7 @@ export default function Canvas() {
               )}
               onClick={(e) => {
                 e.stopPropagation();
-                dispatch({ type: 'SELECT_WIDGET', payload: widget.id });
+                selectWidget(widget.id);
               }}
             >
               <div className="w-full h-full overflow-hidden relative">

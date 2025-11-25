@@ -1,6 +1,6 @@
 'use client';
 import { Widget, TextWidgetProperties } from '@/lib/types';
-import { useEditorDispatch } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,10 +11,10 @@ interface TextPropertiesProps {
 }
 
 export default function TextProperties({ widget }: TextPropertiesProps) {
-  const dispatch = useEditorDispatch();
+  const updateWidgetProperties = useEditorStore(state => state.updateWidgetProperties);
   
-  const debouncedDispatch = useDebouncedCallback((payload) => {
-    dispatch({ type: 'UPDATE_WIDGET_PROPERTIES', payload });
+  const debouncedDispatch = useDebouncedCallback((newProperties: TextWidgetProperties) => {
+    updateWidgetProperties({ id: widget.id, properties: newProperties });
   }, 300);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -23,7 +23,10 @@ export default function TextProperties({ widget }: TextPropertiesProps) {
       ...widget.properties,
       [name]: name === 'fontSize' ? Number(value) : value,
     };
-    debouncedDispatch({ id: widget.id, properties: newProperties });
+    // Optimistic UI update
+    Object.assign(widget.properties, newProperties);
+    // Debounced state update
+    debouncedDispatch(newProperties);
   };
 
   return (

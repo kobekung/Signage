@@ -1,13 +1,25 @@
 'use client';
-import { useEditor } from '@/context/EditorContext';
+import { useEditorStore } from '@/stores';
 import Header from './Header';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
 import Canvas from './Canvas';
 import Player from '@/components/player/Player';
+import { useEffect } from 'react';
+import { mockLayout } from '@/lib/mock-data';
 
 export default function EditorLayout() {
-  const { isPreviewMode, layout } = useEditor();
+  const isPreviewMode = useEditorStore(state => state.isPreviewMode);
+  const layout = useEditorStore(state => state.layout);
+  const loadLayout = useEditorStore(state => state.loadLayout);
+  
+  // Load initial layout into the store
+  useEffect(() => {
+    if (!layout) {
+      loadLayout(mockLayout);
+    }
+  }, [layout, loadLayout]);
+
 
   if (isPreviewMode && layout) {
     return <Player layout={layout} />;
