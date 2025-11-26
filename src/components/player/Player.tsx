@@ -31,19 +31,22 @@ export default function Player({ layout }: PlayerProps) {
   }, []);
   
   useEffect(() => {
-    const updateSize = () => {
+    const resizeObserver = new ResizeObserver(entries => {
+      if (entries[0]) {
+        const { width, height } = entries[0].contentRect;
+        setContainerSize({ width, height });
+      }
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
       if (containerRef.current) {
-        setContainerSize({
-          width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight,
-        });
+        resizeObserver.unobserve(containerRef.current);
       }
     };
-    
-    window.addEventListener('resize', updateSize);
-    updateSize(); 
-    
-    return () => window.removeEventListener('resize', updateSize);
   }, []);
 
   const scale = useMemo(() => {
@@ -57,7 +60,7 @@ export default function Player({ layout }: PlayerProps) {
 
 
   return (
-    <div className="fixed inset-0 bg-black flex items-center justify-center z-50 p-4" ref={containerRef}>
+    <div className="fixed inset-0 bg-black flex items-center justify-center z-50 overflow-hidden" ref={containerRef}>
       <Button
         variant="ghost"
         size="icon"
@@ -68,34 +71,36 @@ export default function Player({ layout }: PlayerProps) {
         <span className="sr-only">Exit Preview</span>
       </Button>
 
-      <div
-        className="relative shadow-lg"
-        style={{
-          width: layout.width,
-          height: layout.height,
-          backgroundColor: layout.backgroundColor,
-          transform: `scale(${scale})`,
-          transformOrigin: 'center center',
-        }}
-      >
-        {layout.widgets.map((widget) => (
-          <div
-            key={widget.id}
-            style={{
-              position: 'absolute',
-              left: widget.x,
-              top: widget.y,
-              width: widget.width,
-              height: widget.height,
-              zIndex: widget.zIndex,
-            }}
-          >
-            <div className="w-full h-full overflow-hidden relative">
-              <WidgetRenderer widget={widget} />
+      {containerSize.width > 0 && (
+        <div
+          className="relative shadow-lg bg-background"
+          style={{
+            width: layout.width,
+            height: layout.height,
+            backgroundColor: layout.backgroundColor,
+            transform: `scale(${scale})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          {layout.widgets.map((widget) => (
+            <div
+              key={widget.id}
+              style={{
+                position: 'absolute',
+                left: widget.x,
+                top: widget.y,
+                width: widget.width,
+                height: widget.height,
+                zIndex: widget.zIndex,
+              }}
+            >
+              <div className="w-full h-full overflow-hidden relative">
+                <WidgetRenderer widget={widget} />
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
