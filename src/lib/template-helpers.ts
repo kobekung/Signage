@@ -4,6 +4,11 @@ export function createLayoutFromTemplate(baseLayout: Layout, template: TemplateT
   const { width, height } = baseLayout;
   let widgets: Widget[] = [];
 
+  // If the template is blank, just return the base layout with empty widgets
+  if (template === 'blank') {
+    return { ...baseLayout, widgets: [] };
+  }
+
   const createWidget = (
     type: 'webview' | 'image',
     x: number,
@@ -57,6 +62,7 @@ export function createLayoutFromTemplate(baseLayout: Layout, template: TemplateT
 
     case 'blank':
     default:
+      // This is now handled at the top, but we keep it here as a fallback.
       widgets = [];
       break;
   }
