@@ -6,7 +6,6 @@ import RightSidebar from './RightSidebar';
 import Canvas from './Canvas';
 import Player from '@/components/player/Player';
 import { useEffect, useState, useRef, useCallback, MouseEvent } from 'react';
-import { mockLayout } from '@/lib/mock-data';
 import { PanelLeftClose, PanelRightClose, PanelLeft, PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,23 +16,23 @@ export default function EditorLayout() {
   const { 
     isPreviewMode, 
     layout, 
-    loadLayout, 
     applyTemplate,
     viewState,
     setViewState,
     fitToScreen,
     deleteWidget,
     selectedWidgetId,
+    hasInitialized
   } = useEditorStore(state => ({
     isPreviewMode: state.isPreviewMode,
     layout: state.layout,
-    loadLayout: state.loadLayout,
     applyTemplate: state.applyTemplate,
     viewState: state.viewState,
     setViewState: state.setViewState,
     fitToScreen: state.fitToScreen,
     deleteWidget: state.deleteWidget,
     selectedWidgetId: state.selectedWidgetId,
+    hasInitialized: state.hasInitialized
   }));
 
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
@@ -43,18 +42,14 @@ export default function EditorLayout() {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
 
+  // Modal Logic: Only open if explicit action triggers it, or if somehow layout is empty but initialized
   useEffect(() => {
-    if (!layout) {
-      loadLayout(mockLayout);
-    }
-  }, [layout, loadLayout]);
-
-  useEffect(() => {
-    if (layout && layout.widgets.length === 0) {
+    if (layout && layout.widgets.length === 0 && !hasInitialized) {
       setIsTemplateModalOpen(true);
     }
-  }, [layout]);
+  }, [layout, hasInitialized]);
   
+  // Initial Fit to Screen
   useEffect(() => {
     const container = canvasContainerRef.current;
     if (!container) return;
@@ -68,14 +63,19 @@ export default function EditorLayout() {
     
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(container);
-    handleResize(); // Initial fit
+    handleResize(); 
 
     return () => resizeObserver.unobserve(container);
   }, [layout, fitToScreen]);
 
+  // Delete Key Logic
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedWidgetId) {
+        const activeTag = document.activeElement?.tagName.toLowerCase();
+        if (activeTag === 'input' || activeTag === 'textarea' || (document.activeElement as HTMLElement).isContentEditable) {
+          return; 
+        }
         e.preventDefault();
         deleteWidget(selectedWidgetId);
       }
@@ -88,7 +88,6 @@ export default function EditorLayout() {
 
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    // Pan on right-click or space+left-click
     if (e.button === 2 || (e.button === 0 && e.nativeEvent.altKey)) {
       e.preventDefault();
       isPanning.current = true;
@@ -115,15 +114,19 @@ export default function EditorLayout() {
   const handleWheel = useCallback((e: WheelEvent) => {
     if (e.ctrlKey) {
       e.preventDefault();
-      const newScale = viewState.scale - e.deltaY * 0.001;
-      setViewState({ scale: Math.max(0.1, newScale) });
+      e.stopPropagation(); 
+      
+      const zoomSensitivity = 0.001;
+      const delta = -e.deltaY * zoomSensitivity;
+      const newScale = Math.min(Math.max(viewState.scale + delta, 0.1), 5);
+      
+      setViewState({ scale: newScale });
     }
   }, [viewState.scale, setViewState]);
 
   useEffect(() => {
     const container = canvasContainerRef.current;
     if (!container) return;
-
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => {
       container.removeEventListener('wheel', handleWheel);
@@ -136,7 +139,9 @@ export default function EditorLayout() {
     setIsTemplateModalOpen(false);
   };
 
-  if (isPreviewMode && layout) {
+  if (!layout) return null; // Should be handled by parent or loading state
+
+  if (isPreviewMode) {
     return <Player layout={layout} />;
   }
 
@@ -195,5 +200,3 @@ export default function EditorLayout() {
     </TooltipProvider>
   );
 }
-
-    

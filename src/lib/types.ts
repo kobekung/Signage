@@ -1,12 +1,15 @@
+// src/lib/types.ts
+
 export type WidgetType = 'text' | 'clock' | 'image' | 'video' | 'ticker' | 'webview';
 
 export interface PlaylistItem {
   id: string;
   url: string;
   type: 'image' | 'video';
-  duration: number; // in seconds
+  duration: number;
 }
 
+// -- Widget Specific Properties --
 export interface TextWidgetProperties {
   content: string;
   color: string;
@@ -28,19 +31,26 @@ export interface ClockWidgetProperties {
 export interface TickerWidgetProperties {
   text: string;
   direction: 'left' | 'right' | 'up' | 'down';
-  speed: number; // pixels per second
+  speed: number;
   textColor: string;
   backgroundColor: string;
   fontSize: number;
 }
 
 export interface WebviewWidgetProperties {
-    url: string;
+  url: string;
 }
 
-export type WidgetProperties = TextWidgetProperties | ImageWidgetProperties | ClockWidgetProperties | TickerWidgetProperties | WebviewWidgetProperties;
+// Union Type for all properties
+export type WidgetProperties = 
+  | TextWidgetProperties 
+  | ImageWidgetProperties 
+  | ClockWidgetProperties 
+  | TickerWidgetProperties 
+  | WebviewWidgetProperties
+  | Record<string, any>; 
 
-export interface Widget<T extends WidgetProperties = WidgetProperties> {
+export interface Widget<T extends WidgetProperties = any> {
   id: string;
   type: WidgetType;
   x: number;
@@ -48,16 +58,29 @@ export interface Widget<T extends WidgetProperties = WidgetProperties> {
   width: number;
   height: number;
   zIndex: number;
-  properties: T;
+  properties: T; 
 }
 
+// -- Database Like Structure --
 export interface Layout {
-  id:string;
+  id: string;
   name: string;
+  description?: string;
   width: number;
   height: number;
   backgroundColor: string;
-  widgets: Widget<any>[];
+  widgets: Widget[];
+  thumbnail?: string; // For dashboard preview
+  createdAt: string;  // ISO Date
+  updatedAt: string;  // ISO Date
 }
 
-export type TemplateType = 'blank' | 'split-horizontal' | 'split-vertical' | 'sidebar-left' | 'quad-grid';
+export type TemplateType = 
+  | 'blank' 
+  | 'split-horizontal' 
+  | 'split-vertical' 
+  | 'sidebar-left' 
+  | 'quad-grid'
+  | 'three-cols'      // NEW
+  | 'three-rows'      // NEW
+  | 'header-sidebar'; // NEW

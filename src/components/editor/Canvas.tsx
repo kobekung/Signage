@@ -43,6 +43,7 @@ export default function Canvas() {
           backgroundColor: layout.backgroundColor,
         }}
         onClick={(e) => {
+          // ถ้าคลิกที่พื้นหลัง Canvas (ไม่ได้คลิก Widget) ให้ยกเลิกการเลือก
           if (e.target === e.currentTarget) {
             selectWidget(null);
           }
@@ -62,13 +63,17 @@ export default function Canvas() {
               'group focus:outline-none',
               selectedWidgetId === widget.id ? 'ring-2 ring-primary ring-offset-2 z-20' : `z-${widget.zIndex}`
             )}
-            onClick={(e) => {
+            onClick={(e: any) => {
               e.stopPropagation();
               selectWidget(widget.id);
             }}
             scale={viewState.scale}
           >
             <div className="w-full h-full overflow-hidden relative">
+              {/* [FIX] Transparent Overlay: บังหน้า Widget ไว้เพื่อให้คลิกเลือก/ลากได้เสมอ (แก้ปัญหา Iframe ขโมยคลิก) */}
+              <div className="absolute inset-0 z-10 bg-transparent" />
+              
+              {/* ตัว Widget ของจริง */}
               <WidgetRenderer widget={widget} />
             </div>
           </Rnd>
