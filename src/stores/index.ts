@@ -8,6 +8,7 @@ import { createLayoutFromTemplate } from '@/lib/template-helpers';
 // Import API functions
 import { 
     getLayouts, 
+    getLayout as apiGetLayout, // [NEW] Import เพิ่ม
     createLayout as apiCreateLayout, 
     saveLayout as apiSaveLayout, 
     deleteLayout as apiDeleteLayout 
@@ -117,17 +118,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  editLayout: (id) => {
-    const layoutToEdit = get().savedLayouts.find(l => l.id === id);
-    if (layoutToEdit) {
-        const layoutCopy = JSON.parse(JSON.stringify(layoutToEdit));
-        set({ 
-            layout: layoutCopy,
-            currentView: 'editor',
-            selectedWidgetId: null,
-            hasInitialized: true,
-            viewState: { scale: 1, panX: 0, panY: 0 }
-        });
+ editLayout: async (id) => {
+    set({ isWidgetLoading: true }); // แสดง Loading (ถ้ามี UI รองรับ)
+    try {
+        const layoutData = await apiGetLayout(id);
+        
+        if (layoutData) {
+            set({ 
+                layout: layoutData,
+                currentView: 'editor',
+                selectedWidgetId: null,
+                hasInitialized: true,
+                viewState: { scale: 1, panX: 0, panY: 0 }
+            });
+        } else {
+            console.error("Layout not found");
+        }
+    } catch (error) {
+        console.error("Failed to fetch layout:", error);
+    } finally {
+        set({ isWidgetLoading: false });
     }
   },
 

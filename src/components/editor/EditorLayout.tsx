@@ -43,7 +43,7 @@ export default function EditorLayout() {
   const isPanning = useRef(false);
 
   // Modal Logic: Only open if explicit action triggers it, or if somehow layout is empty but initialized
-  useEffect(() => {
+ useEffect(() => {
     if (layout && layout.widgets.length === 0 && !hasInitialized) {
       setIsTemplateModalOpen(true);
     }

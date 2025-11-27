@@ -20,7 +20,7 @@ const mapToLayout = (data: any): Layout => ({
 
 const mapToWidget = (data: any): Widget => {
     let props = data.properties;
-    // ถ้า Backend ส่งมาเป็น String JSON ให้แปลงเป็น Object
+    // ถ้า DB เก็บเป็น string ให้ parse, ถ้าเป็น object อยู่แล้วก็ใช้เลย
     if (typeof props === 'string') {
         try { props = JSON.parse(props); } catch {}
     }
@@ -31,7 +31,7 @@ const mapToWidget = (data: any): Widget => {
         y: data.y,
         width: data.width,
         height: data.height,
-        zIndex: data.z_index ?? data.zIndex ?? 1,
+        zIndex: data.z_index ?? data.zIndex ?? 1, // รองรับทั้ง 2 แบบ
         properties: props || {}
     };
 };
