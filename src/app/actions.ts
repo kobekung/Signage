@@ -17,7 +17,8 @@ export async function getWidgetDefaults(widgetType: SuggestWidgetDefaultsInput['
     if (widgetType === 'clock') {
       return { showSeconds: true, format: '24h', color: '#000000', fontSize: 48 };
     }
-    if (widgetType === 'image') {
+    // [FIX] Handle 'video' same as 'image'
+    if (widgetType === 'image' || widgetType === 'video') {
       const defaultImage = PlaceHolderImages.find(img => img.id === 'default-image-widget');
       return { 
         fitMode: 'fill',

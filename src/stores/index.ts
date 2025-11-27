@@ -204,12 +204,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         properties: { ...properties },
       };
 
-      if (type === 'image') {
+      if (type === 'image' || type === 'video') {
         newWidget.properties.fitMode = 'fill';
         if (!newWidget.properties.playlist) {
             const defaultImage = PlaceHolderImages.find(img => img.id === 'default-image-widget');
             newWidget.properties.playlist = [{
-                id: generateId(),
+                id: generateId(), // ใช้ function generateId() ที่เรามีในไฟล์
                 url: defaultImage?.imageUrl || 'https://picsum.photos/seed/10/400/300',
                 type: 'image',
                 duration: 10

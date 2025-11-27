@@ -1,18 +1,11 @@
 'use server';
 
-/**
- * @fileOverview An AI agent that suggests initial property values for widgets based on their type.
- *
- * - suggestWidgetDefaults - A function that suggests initial property values for widgets.
- * - SuggestWidgetDefaultsInput - The input type for the suggestWidgetDefaults function.
- * - SuggestWidgetDefaultsOutput - The return type for the suggestWidgetDefaults function.
- */
-
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+// [FIX] Add 'video' to the enum list
 const SuggestWidgetDefaultsInputSchema = z.object({
-  widgetType: z.enum(['text', 'clock', 'image', 'ticker', 'webview']).describe('The type of the widget.'),
+  widgetType: z.enum(['text', 'clock', 'image', 'video', 'ticker', 'webview']).describe('The type of the widget.'),
 });
 export type SuggestWidgetDefaultsInput = z.infer<typeof SuggestWidgetDefaultsInputSchema>;
 
