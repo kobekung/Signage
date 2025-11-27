@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Monitor, Edit } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // [เพิ่ม] useEffect
 import TemplateSelectionModal from '../editor/TemplateSelectionModal';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -13,11 +13,18 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { TemplateType } from '@/lib/types';
 
 export default function Dashboard() {
-  const { savedLayouts, deleteLayout, editLayout, createLayout } = useEditorStore();
+  // [เพิ่ม] ดึง fetchLayouts มาจาก Store
+  const { savedLayouts, deleteLayout, editLayout, createLayout, fetchLayouts } = useEditorStore();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | null>(null);
   const [newLayoutName, setNewLayoutName] = useState('');
+
+  // [เพิ่ม] สั่งดึงข้อมูลจาก Backend ทันทีที่เข้าหน้านี้
+  useEffect(() => {
+    fetchLayouts();
+  }, []);
 
   const handleTemplateSelect = (template: TemplateType) => {
     setSelectedTemplate(template);
