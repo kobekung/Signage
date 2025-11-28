@@ -3,25 +3,24 @@
 import { useEditorStore } from '@/stores';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Monitor, Edit } from 'lucide-react';
+import { Plus, Trash2, Monitor, Edit, Bus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useState, useEffect } from 'react'; // [เพิ่ม] useEffect
+import { useState, useEffect } from 'react';
 import TemplateSelectionModal from '../editor/TemplateSelectionModal';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TemplateType } from '@/lib/types';
 
 export default function Dashboard() {
-  // [เพิ่ม] ดึง fetchLayouts มาจาก Store
-  const { savedLayouts, deleteLayout, editLayout, createLayout, fetchLayouts } = useEditorStore();
+  const { savedLayouts, deleteLayout, editLayout, createLayout, fetchLayouts, navigateToBuses } = useEditorStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | null>(null);
   const [newLayoutName, setNewLayoutName] = useState('');
 
-  // [เพิ่ม] สั่งดึงข้อมูลจาก Backend ทันทีที่เข้าหน้านี้
+  // โหลดข้อมูลเมื่อเข้าหน้า Dashboard
   useEffect(() => {
     fetchLayouts();
   }, []);
@@ -48,9 +47,16 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold tracking-tight">Layouts</h1>
             <p className="text-muted-foreground mt-1">Manage your digital signage screens.</p>
           </div>
-          <Button onClick={() => setIsModalOpen(true)} size="lg" className="gap-2">
-            <Plus size={20} /> Create New Layout
-          </Button>
+          <div className="flex gap-2">
+              {/* ปุ่มไปหน้าจัดการรถ */}
+              <Button variant="outline" size="lg" className="gap-2" onClick={navigateToBuses}>
+                <Bus size={20} /> Manage Buses
+              </Button>
+              
+              <Button onClick={() => setIsModalOpen(true)} size="lg" className="gap-2">
+                <Plus size={20} /> Create New Layout
+              </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

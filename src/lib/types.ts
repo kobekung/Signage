@@ -8,6 +8,15 @@ export interface PlaylistItem {
   type: 'image' | 'video';
   duration: number;
 }
+export interface Bus {
+  id: number;
+  name: string;
+  device_id: string;
+  company_id: number;
+  current_layout_id: number | null;
+  current_layout?: Layout; 
+  updated_at?: string;
+}
 
 // -- Widget Specific Properties --
 export interface TextWidgetProperties {

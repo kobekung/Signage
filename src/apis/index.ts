@@ -1,10 +1,18 @@
-import { Layout, Widget } from '@/lib/types';
+import { Layout, Widget, Bus } from '@/lib/types';
 
-// URL ของ Backend (เปลี่ยน port ตามที่คุณตั้งไว้ เช่น 5000)
+// เปลี่ยน URL Backend ให้ถูกต้อง
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// --- Mapper Functions (แปลงข้อมูลให้ตรงกัน) ---
+// [NEW] Hardcode Company ID ไว้ก่อน (ในอนาคตอาจดึงจาก Login Token)
+const COMPANY_ID = 1;
 
+// Helper สำหรับ Headers
+const getHeaders = () => ({
+  'Content-Type': 'application/json',
+  'x-company-id': COMPANY_ID.toString(),
+});
+
+// --- Mapper Functions (เดิม) ---
 const mapToLayout = (data: any): Layout => ({
   id: data.id,
   name: data.name,
@@ -20,7 +28,6 @@ const mapToLayout = (data: any): Layout => ({
 
 const mapToWidget = (data: any): Widget => {
     let props = data.properties;
-    // ถ้า DB เก็บเป็น string ให้ parse, ถ้าเป็น object อยู่แล้วก็ใช้เลย
     if (typeof props === 'string') {
         try { props = JSON.parse(props); } catch {}
     }
@@ -31,16 +38,18 @@ const mapToWidget = (data: any): Widget => {
         y: data.y,
         width: data.width,
         height: data.height,
-        zIndex: data.z_index ?? data.zIndex ?? 1, // รองรับทั้ง 2 แบบ
+        zIndex: data.z_index ?? data.zIndex ?? 1,
         properties: props || {}
     };
 };
 
-// --- API Methods ---
+// --- Layout APIs (อัปเดตให้ส่ง Headers) ---
 
 export const getLayouts = async (): Promise<Layout[]> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/layouts`);
+    const res = await fetch(`${API_BASE_URL}/layouts?company_id=${COMPANY_ID}`, {
+        headers: getHeaders()
+    });
     if (!res.ok) throw new Error('Failed to fetch layouts');
     const data = await res.json();
     return data.map(mapToLayout);
@@ -52,76 +61,87 @@ export const getLayouts = async (): Promise<Layout[]> => {
 
 export const getLayout = async (id: string): Promise<Layout | null> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/layouts/${id}`);
-    if (!res.ok) {
-        if (res.status === 404) return null;
-        throw new Error('Failed to fetch layout');
-    }
+    const res = await fetch(`${API_BASE_URL}/layouts/${id}`, { headers: getHeaders() });
+    if (!res.ok) return null;
     const data = await res.json();
     return mapToLayout(data);
   } catch (error) {
-    console.error("API Error:", error);
     return null;
   }
 };
 
+export const createLayout = async (layout: any): Promise<Layout> => {
+    const payload = {
+      ...layout,
+      company_id: COMPANY_ID, // แนบ Company ID ไปด้วย
+      widgets: layout.widgets.map((w: any) => ({ ...w, z_index: w.zIndex }))
+    };
+
+    const res = await fetch(`${API_BASE_URL}/layouts`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to create layout');
+    return await res.json();
+};
+
 export const saveLayout = async (layout: Layout): Promise<void> => {
-  // ส่งข้อมูลทั้งหมดไปอัปเดต (รวม Widgets)
   const payload = {
       name: layout.name,
       description: layout.description,
       width: layout.width,
       height: layout.height,
       background_color: layout.backgroundColor,
-      // แปลง widget กลับเป็น format ที่ backend เข้าใจ
-      widgets: layout.widgets.map(w => ({
-          ...w,
-          z_index: w.zIndex, 
-          // properties จะถูกจัดการโดย JSON.stringify ของ fetch body เอง หรือ backend ต้องรับ object ได้
-      }))
+      widgets: layout.widgets.map(w => ({ ...w, z_index: w.zIndex }))
   };
 
   const res = await fetch(`${API_BASE_URL}/layouts/${layout.id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getHeaders(),
     body: JSON.stringify(payload),
   });
-
   if (!res.ok) throw new Error('Failed to save layout');
 };
 
-export const createLayout = async (layout: Omit<Layout, 'id' | 'createdAt' | 'updatedAt'>): Promise<Layout> => {
-    const payload = {
-      name: layout.name,
-      description: layout.description,
-      width: layout.width,
-      height: layout.height,
-      background_color: layout.backgroundColor,
-      widgets: layout.widgets.map(w => ({
-          ...w,
-          z_index: w.zIndex
-      }))
-    };
-
-    const res = await fetch(`${API_BASE_URL}/layouts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) throw new Error('Failed to create layout');
-    const result = await res.json(); 
-    
-    // คืนค่า Layout พร้อม ID จริงจาก Database
-    return {
-        ...layout,
-        id: result.id, // ใช้ ID ที่ได้จาก DB
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    };
+export const deleteLayout = async (id: string): Promise<void> => {
+  const res = await fetch(`${API_BASE_URL}/layouts/${id}`, { 
+      method: 'DELETE',
+      headers: getHeaders() 
+  });
+  if (!res.ok) throw new Error('Failed to delete layout');
 };
 
-export const deleteLayout = async (id: string): Promise<void> => {
-  const res = await fetch(`${API_BASE_URL}/layouts/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete layout');
+// --- [NEW] Buses APIs ---
+
+export const getBuses = async (): Promise<Bus[]> => {
+  const res = await fetch(`${API_BASE_URL}/buses?company_id=${COMPANY_ID}`, {
+      headers: getHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch buses');
+  return await res.json();
+};
+
+export const createBus = async (name: string, deviceId: string): Promise<Bus> => {
+  const res = await fetch(`${API_BASE_URL}/buses`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ 
+          name, 
+          device_id: deviceId, 
+          company_id: COMPANY_ID 
+      }),
+  });
+  if (!res.ok) throw new Error('Failed to create bus');
+  return await res.json();
+};
+
+export const assignBusLayout = async (busId: number, layoutId: number | null) => {
+  const res = await fetch(`${API_BASE_URL}/buses/${busId}/assign`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ layout_id: layoutId }),
+  });
+  if (!res.ok) throw new Error('Failed to assign layout');
+  return await res.json();
 };

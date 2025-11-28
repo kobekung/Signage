@@ -22,8 +22,8 @@ type ViewState = {
   panX: number;
   panY: number;
 };
+type AppView = 'dashboard' | 'editor' | 'buses';
 
-type AppView = 'dashboard' | 'editor';
 
 type EditorState = {
   currentView: AppView;
@@ -43,6 +43,7 @@ type EditorState = {
   deleteLayout: (id: string) => Promise<void>; // [Async]
   saveCurrentLayout: () => Promise<void>; // [Async]
   backToDashboard: () => void;
+  navigateToBuses: () => void;
 
   // ... Editor actions (เหมือนเดิม) ...
   loadLayout: (layout: Layout) => void;
@@ -175,9 +176,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  navigateToBuses: () => {
+      set({ currentView: 'buses', selectedWidgetId: null });
+  },
+  
   backToDashboard: () => {
-      // Reload list to ensure fresh data
-      get().fetchLayouts();
+      get().fetchLayouts(); // Refresh ข้อมูลเมื่อกลับมา
       set({ currentView: 'dashboard', layout: null, hasInitialized: false });
   },
 
