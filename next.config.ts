@@ -1,14 +1,15 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  output: "export", // ✅ บังคับออกเป็น Static HTML (โฟลเดอร์ out)
+  
   eslint: {
     ignoreDuringBuilds: true,
   },
+  
+  // ✅ จำเป็นมากสำหรับ Static Export เพราะไม่มี Server มา Optimize รูปให้
   images: {
+    unoptimized: true, 
     remotePatterns: [
       {
         protocol: 'https',

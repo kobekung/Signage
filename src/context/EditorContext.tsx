@@ -2,7 +2,8 @@
 
 import React, { createContext, useReducer, useContext, Dispatch, ReactNode } from 'react';
 import { Layout, Widget, WidgetType } from '@/lib/types';
-import { mockLayout } from '@/lib/mock-data';
+// [FIX] เปลี่ยนจาก mockLayout เป็น mockDatabase
+import { mockDatabase } from '@/lib/mock-data';
 import { getWidgetDefaults } from '@/app/actions';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -107,7 +108,10 @@ export const useEditor = () => {
   const dispatch = useEditorDispatch();
 
   React.useEffect(() => {
-    dispatch({ type: 'LOAD_LAYOUT', payload: mockLayout });
+    // [FIX] ใช้ข้อมูลตัวแรกจาก Mock Database แทน
+    if (mockDatabase && mockDatabase.length > 0) {
+        dispatch({ type: 'LOAD_LAYOUT', payload: mockDatabase[0] });
+    }
   }, [dispatch]);
 
   const addWidget = async (type: WidgetType) => {
