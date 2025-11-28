@@ -59,6 +59,7 @@ export default function CommonProperties({ widget }: CommonPropertiesProps) {
                 value={widget.type} 
                 onValueChange={handleTypeChange} 
                 disabled={isWidgetLoading}
+                
             >
                 <SelectTrigger className="w-full bg-background">
                     <SelectValue placeholder="Select type" />
