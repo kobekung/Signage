@@ -54,7 +54,7 @@ export default function MediaPlaylistWidget({ properties }: MediaPlaylistWidgetP
           key={currentItem.id}
           src={currentItem.url}
           autoPlay
-          muted
+          // muted
           loop={playlist.length === 1}
           className="w-full h-full"
           style={{ objectFit: fitMode }}
