@@ -70,20 +70,29 @@ export const getLayout = async (id: string): Promise<Layout | null> => {
   }
 };
 
-export const createLayout = async (layout: any): Promise<Layout> => {
+export const createLayout = async (layout: any): Promise<Layout> => { // แก้ type เป็น any ชั่วคราวเพื่อให้ง่าย
     const payload = {
       ...layout,
-      company_id: COMPANY_ID, // แนบ Company ID ไปด้วย
+      // [4] ใส่ company_id ลงไปใน Body ด้วย (สำคัญมาก!)
+      company_id: COMPANY_ID, 
       widgets: layout.widgets.map((w: any) => ({ ...w, z_index: w.zIndex }))
     };
 
     const res = await fetch(`${API_BASE_URL}/layouts`, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: getHeaders(), // ใส่ Header
         body: JSON.stringify(payload),
     });
+
     if (!res.ok) throw new Error('Failed to create layout');
-    return await res.json();
+    const result = await res.json(); 
+    
+    return {
+        ...layout,
+        id: result.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
 };
 
 export const saveLayout = async (layout: Layout): Promise<void> => {
