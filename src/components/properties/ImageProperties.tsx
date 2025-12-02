@@ -1,35 +1,43 @@
 'use client';
-import { Widget, ImageWidgetProperties, PlaylistItem } from '@/lib/types';
+import { Widget, WidgetProperties, PlaylistItem } from '@/lib/types'; // [FIX] ใช้ WidgetProperties
 import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Trash2, Plus, Upload, Loader2 } from 'lucide-react'; // เพิ่ม Loader2
+import { Trash2, Plus, Upload, Loader2, MapPin, Maximize } from 'lucide-react';
 import { useDebouncedCallback } from 'use-debounce';
-import { useRef, useState } from 'react'; // เพิ่ม useState
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { useRef, useState } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 interface ImagePropertiesProps {
-  widget: Widget<ImageWidgetProperties>;
+  widget: Widget; // [FIX] Widget ไม่ต้องมี Generic <...> แล้ว
 }
 
-// URL ของ API Upload (ชี้ไปที่ Backend ของคุณ)
-const API_UPLOAD_URL = 'https://api-signage.lab.bussing.app/api/upload'; 
+const API_UPLOAD_URL = process.env.NEXT_PUBLIC_API_URL 
+  ? `${process.env.NEXT_PUBLIC_API_URL.replace('/api', '')}/api/upload`
+  : 'http://localhost:5000/api/upload';
 
 export default function ImageProperties({ widget }: ImagePropertiesProps) {
   const updateWidgetProperties = useEditorStore(state => state.updateWidgetProperties);
-  const { playlist } = widget.properties;
+  
+  // cast properties ให้เป็น WidgetProperties (เผื่อบางที TS งง) แต่จริงๆ widget.properties ก็เป็น type นี้อยู่แล้ว
+  const properties = widget.properties;
+  const { playlist = [] } = properties;
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false); // สถานะกำลังอัปโหลด
+  const [isUploading, setIsUploading] = useState(false);
 
-  const debouncedUpdate = useDebouncedCallback((newProps: Partial<ImageWidgetProperties>) => {
+  // [FIX] ใช้ Partial<WidgetProperties> แทน ImageWidgetProperties
+  const debouncedUpdate = useDebouncedCallback((newProps: Partial<WidgetProperties>) => {
     updateWidgetProperties({
       id: widget.id,
       properties: { ...widget.properties, ...newProps },
     });
   }, 300);
 
-  const updateProperties = (newProps: Partial<ImageWidgetProperties>) => {
+  // [FIX] ใช้ Partial<WidgetProperties>
+  const updateProperties = (newProps: Partial<WidgetProperties>) => {
     Object.assign(widget.properties, newProps);
     debouncedUpdate(newProps);
   };
@@ -38,7 +46,7 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
     updateProperties({ playlist: newPlaylist });
   };
 
-  const handleItemChange = (itemId: string, field: 'url' | 'duration', value: string | number) => {
+  const handleItemChange = (itemId: string, field: keyof PlaylistItem, value: any) => {
     const newPlaylist = playlist.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
     );
@@ -74,14 +82,12 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
         return;
     }
 
-    setIsUploading(true); // เริ่มหมุนติ้วๆ
+    setIsUploading(true);
 
     try {
-        // 1. สร้าง Form Data เพื่อส่งไฟล์
         const formData = new FormData();
         formData.append('file', file);
 
-        // 2. ส่งไฟล์ไปที่ Backend
         const response = await fetch(API_UPLOAD_URL, {
             method: 'POST',
             body: formData,
@@ -89,7 +95,6 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
 
         if (!response.ok) throw new Error('Upload failed');
         
-        // 3. รับ URL จริงกลับมา (เช่น http://localhost:5000/uploads/abc.jpg)
         const data = await response.json();
         const realUrl = data.url; 
 
@@ -97,7 +102,6 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
         if (fileType === 'video') {
             duration = 30; 
             try {
-                // หาความยาววิดีโอ (ใช้ blob ชั่วคราวเพื่อความเร็วในการอ่าน meta)
                 const tempUrl = URL.createObjectURL(file);
                 const videoDuration = await getVideoDuration(tempUrl); 
                 duration = Math.round(videoDuration);
@@ -105,10 +109,9 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
             } catch (e) { console.error("Duration error:", e); }
         }
         
-        // 4. เพิ่มลง Playlist ด้วย URL จริง
         const newItem: PlaylistItem = {
             id: `media-${Date.now()}`,
-            url: realUrl, // [สำคัญ] เก็บ URL จริง ไม่ใช่ blob
+            url: realUrl, 
             type: fileType,
             duration: duration,
         };
@@ -117,9 +120,9 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
 
     } catch (error) {
         console.error("Upload error:", error);
-        alert("Failed to upload file. Please check Backend connection.");
+        alert("Failed to upload file.");
     } finally {
-        setIsUploading(false); // หยุดหมุน
+        setIsUploading(false);
     }
     
     if(fileInputRef.current) fileInputRef.current.value = '';
@@ -140,7 +143,7 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
       <div className="space-y-2">
         <Label>Fit Mode</Label>
          <Select
-          value={widget.properties.fitMode || 'fill'}
+          value={properties.fitMode || 'fill'}
           onValueChange={(value: 'cover' | 'contain' | 'fill') => updateProperties({ fitMode: value })}
         >
           <SelectTrigger>
@@ -174,7 +177,7 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
         </div>
       </div>
 
-      <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
         {playlist.map((item, index) => (
           <div key={item.id} className="p-3 border rounded-lg space-y-3 bg-muted/20">
             <div className="flex justify-between items-center">
@@ -185,24 +188,60 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
                     <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor={`url-${item.id}`}>URL</Label>
-              <Input
-                id={`url-${item.id}`}
-                value={item.url}
-                readOnly // ให้ Read-only เพราะเป็น URL จาก Server แก้เองไม่ได้ (ต้องลบลงใหม่)
-                className="bg-muted text-muted-foreground"
-              />
+            
+            <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2 space-y-1">
+                    <Label htmlFor={`url-${item.id}`} className="text-xs">URL</Label>
+                    <Input
+                        id={`url-${item.id}`}
+                        value={item.url}
+                        readOnly
+                        className="h-8 bg-white"
+                    />
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor={`duration-${item.id}`} className="text-xs">Sec</Label>
+                    <Input
+                        id={`duration-${item.id}`}
+                        type="number"
+                        value={item.duration}
+                        onChange={(e) => handleItemChange(item.id, 'duration', Number(e.target.value))}
+                        className="h-8"
+                    />
+                </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor={`duration-${item.id}`}>Duration (s)</Label>
-              <Input
-                id={`duration-${item.id}`}
-                type="number"
-                defaultValue={item.duration}
-                onChange={(e) => handleItemChange(item.id, 'duration', Number(e.target.value))}
-              />
+
+            {/* Trigger Settings */}
+            <div className="pt-2 border-t border-muted-foreground/20">
+                <div className="flex items-center gap-2 mb-2 text-xs text-blue-600 font-semibold">
+                    <MapPin size={12} />
+                    <span>Trigger Settings</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                        <Label className="text-[10px]">Location ID</Label>
+                        <Input 
+                            className="h-7 text-xs" 
+                            placeholder="e.g. 100"
+                            value={item.locationId || ''}
+                            onChange={(e) => handleItemChange(item.id, 'locationId', e.target.value)}
+                        />
+                    </div>
+                    <div className="flex items-end justify-end pb-1">
+                         <div className="flex items-center gap-2">
+                            <Label className="text-[10px] flex items-center gap-1">
+                                <Maximize size={10} /> Fullscreen
+                            </Label>
+                            <Switch 
+                                className="scale-75"
+                                checked={item.fullscreen || false}
+                                onCheckedChange={(val) => handleItemChange(item.id, 'fullscreen', val)}
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
+
           </div>
         ))}
         {playlist.length === 0 && (

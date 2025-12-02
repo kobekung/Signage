@@ -1,35 +1,18 @@
-// src/components/properties/CommonProperties.tsx
 'use client';
 
 import { Widget, WidgetType } from '@/lib/types';
 import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { 
-  Type, 
-  Image as ImageIcon, 
-  Clock, 
-  Globe, 
-  Newspaper, 
-  ArrowRightLeft 
-} from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Type, Image as ImageIcon, Clock, Globe, Newspaper, ArrowRightLeft } from 'lucide-react';
 
 interface CommonPropertiesProps {
   widget: Widget;
 }
 
 export default function CommonProperties({ widget }: CommonPropertiesProps) {
-  const updateWidgetPosition = useEditorStore(state => state.updateWidgetPosition);
-  const updateWidgetSize = useEditorStore(state => state.updateWidgetSize);
-  const changeWidgetType = useEditorStore(state => state.changeWidgetType);
-  const isWidgetLoading = useEditorStore(state => state.isWidgetLoading);
+  const { updateWidgetPosition, updateWidgetSize, changeWidgetType, isWidgetLoading } = useEditorStore();
 
   const handlePositionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -49,7 +32,7 @@ export default function CommonProperties({ widget }: CommonPropertiesProps) {
 
   return (
     <div className="space-y-6">
-        {/* [NEW] Widget Type Selector */}
+        {/* Widget Type Selector */}
         <div className="space-y-2 p-3 bg-accent/20 rounded-lg border border-accent/50">
             <div className="flex items-center gap-2 mb-2 text-sm font-medium text-accent-foreground">
                 <ArrowRightLeft size={16} />
@@ -59,49 +42,40 @@ export default function CommonProperties({ widget }: CommonPropertiesProps) {
                 value={widget.type} 
                 onValueChange={handleTypeChange} 
                 disabled={isWidgetLoading}
-                
             >
                 <SelectTrigger className="w-full bg-background">
                     <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="text">
-                        <div className="flex items-center gap-2"><Type size={14}/> Text</div>
-                    </SelectItem>
-                    <SelectItem value="image">
-                        <div className="flex items-center gap-2"><ImageIcon size={14}/> Image/Video</div>
-                    </SelectItem>
-                    <SelectItem value="clock">
-                        <div className="flex items-center gap-2"><Clock size={14}/> Clock</div>
-                    </SelectItem>
-                    <SelectItem value="ticker">
-                        <div className="flex items-center gap-2"><Newspaper size={14}/> Ticker</div>
-                    </SelectItem>
-                    <SelectItem value="webview">
-                        <div className="flex items-center gap-2"><Globe size={14}/> Web Page</div>
-                    </SelectItem>
+                    <SelectItem value="text"><div className="flex items-center gap-2"><Type size={14}/> Text</div></SelectItem>
+                    <SelectItem value="image"><div className="flex items-center gap-2"><ImageIcon size={14}/> Image/Video</div></SelectItem>
+                    <SelectItem value="clock"><div className="flex items-center gap-2"><Clock size={14}/> Clock</div></SelectItem>
+                    <SelectItem value="ticker"><div className="flex items-center gap-2"><Newspaper size={14}/> Ticker</div></SelectItem>
+                    <SelectItem value="webview"><div className="flex items-center gap-2"><Globe size={14}/> Web Page</div></SelectItem>
                 </SelectContent>
             </Select>
         </div>
 
-        {/* Existing Transform Controls */}
+        {/* [REMOVED] Location Trigger Section ออกจากตรงนี้ */}
+
+        {/* Dimensions & Position */}
         <div className="space-y-3">
             <h4 className="font-medium text-sm text-muted-foreground">Dimensions & Position</h4>
             <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                    <Label htmlFor="x" className="text-xs">X Position</Label>
+                    <Label htmlFor="x" className="text-xs">X</Label>
                     <Input id="x" name="x" type="number" value={Math.round(widget.x)} onChange={handlePositionChange} className="h-8" />
                 </div>
                 <div className="space-y-1">
-                    <Label htmlFor="y" className="text-xs">Y Position</Label>
+                    <Label htmlFor="y" className="text-xs">Y</Label>
                     <Input id="y" name="y" type="number" value={Math.round(widget.y)} onChange={handlePositionChange} className="h-8" />
                 </div>
                 <div className="space-y-1">
-                    <Label htmlFor="width" className="text-xs">Width</Label>
+                    <Label htmlFor="width" className="text-xs">W</Label>
                     <Input id="width" name="width" type="number" value={Math.round(widget.width)} onChange={handleSizeChange} className="h-8" />
                 </div>
                 <div className="space-y-1">
-                    <Label htmlFor="height" className="text-xs">Height</Label>
+                    <Label htmlFor="height" className="text-xs">H</Label>
                     <Input id="height" name="height" type="number" value={Math.round(widget.height)} onChange={handleSizeChange} className="h-8" />
                 </div>
             </div>

@@ -1,71 +1,104 @@
 'use client';
-import Image from 'next/image';
-import { ImageWidgetProperties } from '@/lib/types';
-import { useState, useEffect } from 'react';
+import { Widget, WidgetProperties, PlaylistItem } from '@/lib/types';
+import { useState, useEffect, useRef } from 'react';
+import { Loader2, Volume2, VolumeX } from 'lucide-react';
 
-interface MediaPlaylistWidgetProps {
-  properties: ImageWidgetProperties;
+interface ImageWidgetProps {
+  widget: Widget; // รับ Widget เต็มๆ
+  properties: WidgetProperties;
+  onFinished?: () => void; // [NEW]
+  isTriggerMode?: boolean; // [NEW]
 }
 
-export default function MediaPlaylistWidget({ properties }: MediaPlaylistWidgetProps) {
-  const { playlist, fitMode = 'fill' } = properties;
+export default function ImageWidget({ properties, onFinished, isTriggerMode }: ImageWidgetProps) {
+  const { playlist = [], fitMode = 'cover' } = properties;
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(true); // Default muted for autoplay
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Logic การเล่น Playlist
   useEffect(() => {
-    if (!playlist || playlist.length === 0) return;
+    if (playlist.length === 0) return;
 
     const currentItem = playlist[currentIndex];
-    const durationInMs = currentItem.duration * 1000;
+    let timer: NodeJS.Timeout;
 
-    const timer = setTimeout(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % playlist.length);
-    }, durationInMs);
+    // ฟังก์ชันเปลี่ยนรายการถัดไป
+    const goNext = () => {
+        if (currentIndex < playlist.length - 1) {
+            setCurrentIndex(prev => prev + 1);
+        } else {
+            // จบ Playlist แล้ว
+            if (isTriggerMode && onFinished) {
+                onFinished(); // [สำคัญ] แจ้ง Player ว่าจบแล้วให้ปิด Overlay
+            } else {
+                setCurrentIndex(0); // Loop ปกติ
+            }
+        }
+    };
+
+    if (currentItem.type === 'image') {
+      // รูปภาพ: ตั้งเวลาตาม duration แล้วเปลี่ยน
+      const duration = (currentItem.duration || 10) * 1000;
+      timer = setTimeout(goNext, duration);
+    } 
+    // วิดีโอ: จะจัดการด้วย event onEnded ของ <video> เอง
 
     return () => clearTimeout(timer);
-  }, [currentIndex, playlist]);
+  }, [currentIndex, playlist, isTriggerMode, onFinished]);
+
 
   if (!playlist || playlist.length === 0) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
-        <p>Empty Playlist</p>
-      </div>
-    );
+    return <div className="w-full h-full bg-gray-200 flex items-center justify-center">No Media</div>;
   }
 
   const currentItem = playlist[currentIndex];
-  
-  if (currentItem.type === 'image') {
-    return (
-      <div className="w-full h-full relative bg-muted overflow-hidden">
-        <Image
-          src={currentItem.url}
-          alt={`Playlist image ${currentIndex + 1}`}
-          fill
-          style={{ objectFit: fitMode }}
-        />
-      </div>
-    );
-  }
 
-  if (currentItem.type === 'video') {
-    return (
-      <div className="w-full h-full relative bg-black overflow-hidden">
+  return (
+    <div className="w-full h-full relative bg-black">
+      {currentItem.type === 'video' ? (
         <video
-          key={currentItem.id}
+          ref={videoRef}
+          key={currentItem.id} // สำคัญ! เปลี่ยน key เพื่อให้ React สร้าง video ใหม่
           src={currentItem.url}
+          className="w-full h-full"
+          style={{ objectFit: fitMode }}
           autoPlay
-          // muted
-          loop={playlist.length === 1}
+          muted={isMuted}
+          playsInline
+          onEnded={() => {
+              // เมื่อวิดีโอจบ ให้ไปตัวถัดไป
+              if (currentIndex < playlist.length - 1) {
+                  setCurrentIndex(prev => prev + 1);
+              } else {
+                  // จบ Playlist
+                  if (isTriggerMode && onFinished) {
+                      onFinished();
+                  } else {
+                      setCurrentIndex(0);
+                  }
+              }
+          }}
+        />
+      ) : (
+        <img
+          src={currentItem.url}
+          alt="content"
           className="w-full h-full"
           style={{ objectFit: fitMode }}
         />
-      </div>
-    );
-  }
-  
-  return (
-    <div className="w-full h-full flex items-center justify-center bg-red-200">
-      <p>Unsupported media type</p>
+      )}
+      
+      {/* ปุ่มเปิดเสียงเฉพาะวิดีโอ */}
+      {currentItem.type === 'video' && (
+          <button 
+            onClick={() => setIsMuted(!isMuted)}
+            className="absolute bottom-4 right-4 bg-black/50 text-white p-2 rounded-full opacity-50 hover:opacity-100 transition"
+          >
+            {isMuted ? <VolumeX size={20}/> : <Volume2 size={20}/>}
+          </button>
+      )}
     </div>
   );
 }
