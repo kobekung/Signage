@@ -3,7 +3,7 @@
 import { useEditorStore } from '@/stores';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Monitor, Edit, Bus } from 'lucide-react';
+import { Plus, Trash2, Monitor, Edit, Bus, LogOut } from 'lucide-react'; // [NEW] เพิ่ม LogOut Icon
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useEffect } from 'react';
 import TemplateSelectionModal from '../editor/TemplateSelectionModal';
@@ -13,12 +13,22 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { TemplateType } from '@/lib/types';
 
 export default function Dashboard() {
-  const { savedLayouts, deleteLayout, editLayout, createLayout, fetchLayouts, navigateToBuses } = useEditorStore();
+  // [NEW] ดึง logout มาจาก Store
+  const { 
+    savedLayouts, 
+    deleteLayout, 
+    editLayout, 
+    createLayout, 
+    fetchLayouts, 
+    navigateToBuses,
+    logout 
+  } = useEditorStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | null>(null);
   const [newLayoutName, setNewLayoutName] = useState('');
+  const MASS_APP_URL = process.env.NEXT_PUBLIC_MASS_APP_URL || 'https://mass.bussing.app';
 
   useEffect(() => {
     fetchLayouts();
@@ -27,11 +37,8 @@ export default function Dashboard() {
   const handleTemplateSelect = (template: TemplateType) => {
     setSelectedTemplate(template);
     setIsModalOpen(false);
-    
-    // [FIX 1] แปลงเป็น String ก่อนเรียก charAt เพื่อความชัวร์
     const templateName = String(template); 
     setNewLayoutName(`${templateName.charAt(0).toUpperCase() + templateName.slice(1)} Layout`);
-    
     setIsNameDialogOpen(true);
   };
 
@@ -42,7 +49,15 @@ export default function Dashboard() {
     }
   };
 
-  // [FIX 2] Helper function เพื่อจัดการ Date ที่อาจเป็น null/undefined/string
+  // [NEW] ฟังก์ชัน Logout
+  const handleLogout = () => {
+      if (confirm("Are you sure you want to logout?")) {
+          logout(); // ล้าง Token
+          // ดีดกลับไปหน้า Mass App
+          window.location.href = MASS_APP_URL+'/?signage=true'; 
+      }
+  };
+
   const formatDate = (dateString?: string | Date) => {
       if (!dateString) return 'Unknown';
       try {
@@ -61,6 +76,11 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-1">Manage your digital signage screens.</p>
           </div>
           <div className="flex gap-2">
+              {/* [NEW] ปุ่ม Logout */}
+              <Button variant="ghost" className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleLogout}>
+                <LogOut size={20} /> Logout
+              </Button>
+
               <Button variant="outline" size="lg" className="gap-2" onClick={navigateToBuses}>
                 <Bus size={20} /> Manage Buses
               </Button>
@@ -74,7 +94,6 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {savedLayouts.map((layout) => (
             <Card key={layout.id} className="group hover:shadow-lg transition-all duration-200 overflow-hidden border-muted-foreground/20 cursor-pointer" onClick={() => editLayout(layout.id.toString())}>
-              {/* ... (Thumbnail section same as before) ... */}
               <div className="aspect-video bg-slate-100 relative group-hover:opacity-90 transition-opacity border-b">
                 <div className="absolute inset-0 flex items-center justify-center text-slate-300">
                     <Monitor size={48} />
@@ -107,13 +126,11 @@ export default function Dashboard() {
               <CardContent className="pb-2">
                 <div className="text-xs text-muted-foreground flex flex-col gap-1">
                     <span>Resolution: {layout.width} x {layout.height} px</span>
-                    {/* [FIX 2 Applied] เรียกใช้ฟังก์ชันช่วย */}
                     <span>Updated: {formatDate(layout.updatedAt)}</span>
                 </div>
               </CardContent>
 
               <CardFooter className="flex justify-end gap-2 pt-2 border-t bg-muted/5">
-                {/* [FIX 3] layout.id อาจเป็น number ให้แปลงเป็น string */}
                 <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); editLayout(layout.id.toString()); }}>
                     <Edit size={16} className="mr-2" /> Edit
                 </Button>

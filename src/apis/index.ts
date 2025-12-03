@@ -1,3 +1,4 @@
+import { useEditorStore } from '@/stores';
 import { Layout, Widget, Bus } from '@/lib/types';
 
 // เปลี่ยน URL Backend ให้ถูกต้อง
@@ -7,10 +8,21 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/a
 const COMPANY_ID = 1;
 
 // Helper สำหรับ Headers
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  'com_id': COMPANY_ID.toString(),
-});
+const getHeaders = () => {
+  const { userInfo } = useEditorStore.getState();
+  
+  // Debug ดูว่า com_id มาถูกไหม
+  if (!userInfo.com_id) {
+      console.warn("⚠️ Warning: No com_id found in store. Using fallback.");
+  }
+
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': userInfo.token ? `Bearer ${userInfo.token}` : '',
+    // ใช้ com_id จาก Store (ถ้าไม่มีจริงๆ ค่อย fallback เป็น 1 หรือ error)
+    'com_id': (userInfo.com_id || 4).toString(), 
+  };
+};
 
 // --- Mapper Functions (เดิม) ---
 const mapToLayout = (data: any): Layout => ({
@@ -46,17 +58,12 @@ const mapToWidget = (data: any): Widget => {
 // --- Layout APIs (อัปเดตให้ส่ง Headers) ---
 
 export const getLayouts = async (): Promise<Layout[]> => {
-  try {
-    const res = await fetch(`${API_BASE_URL}/layouts?company_id=${COMPANY_ID}`, {
-        headers: getHeaders()
-    });
-    if (!res.ok) throw new Error('Failed to fetch layouts');
-    const data = await res.json();
-    return data.map(mapToLayout);
-  } catch (error) {
-    console.error("API Error:", error);
-    return [];
-  }
+  const headers = getHeaders();
+  // ไม่ต้องส่ง query param ถ้า backend อ่าน header ได้ หรือจะส่งไปเผื่อก็ได้
+  const res = await fetch(`${API_BASE_URL}/layouts`, { headers }); 
+  if (!res.ok) throw new Error('Failed to fetch layouts');
+  const data = await res.json();
+  return data.map(mapToLayout);
 };
 
 export const getLayout = async (id: string): Promise<Layout | null> => {
@@ -71,10 +78,11 @@ export const getLayout = async (id: string): Promise<Layout | null> => {
 };
 
 export const createLayout = async (layout: any): Promise<Layout> => { // แก้ type เป็น any ชั่วคราวเพื่อให้ง่าย
+    const { userInfo } = useEditorStore.getState();
     const payload = {
       ...layout,
       // [4] ใส่ company_id ลงไปใน Body ด้วย (สำคัญมาก!)
-      company_id: COMPANY_ID, 
+      company_id: userInfo.com_id, 
       widgets: layout.widgets.map((w: any) => ({ ...w, z_index: w.zIndex }))
     };
 
@@ -124,7 +132,7 @@ export const deleteLayout = async (id: string): Promise<void> => {
 // --- [NEW] Buses APIs ---
 
 export const getBuses = async (): Promise<Bus[]> => {
-  const res = await fetch(`${API_BASE_URL}/bus/signage?company_id=${COMPANY_ID}`, {
+  const res = await fetch(`${API_BASE_URL}/bus/signage`, { // ใช้ URL นี้ตามที่คุณแก้
       headers: getHeaders()
   });
   if (!res.ok) throw new Error('Failed to fetch buses');
@@ -132,17 +140,36 @@ export const getBuses = async (): Promise<Bus[]> => {
 };
 
 export const createBus = async (name: string, deviceId: string): Promise<Bus> => {
+  const { userInfo } = useEditorStore.getState(); // ดึง com_id จาก Store
   const res = await fetch(`${API_BASE_URL}/bus/signage`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ 
           bus_name: name, 
           device_id: deviceId, 
-          bus_com_id: COMPANY_ID 
+          bus_com_id: userInfo.com_id 
       }),
   });
   if (!res.ok) throw new Error('Failed to create bus');
   return await res.json();
+};
+export const updateBus = async (id: number, name: string, deviceId: string): Promise<Bus> => {
+  const res = await fetch(`${API_BASE_URL}/bus/signage/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ bus_name: name, bus_device_id: deviceId }),
+  });
+  if (!res.ok) throw new Error('Failed to update bus');
+  return await res.json();
+};
+
+// [NEW] ลบรถ
+export const deleteBus = async (id: number): Promise<void> => {
+  const res = await fetch(`${API_BASE_URL}/bus/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete bus');
 };
 
 export const assignBusLayout = async (busId: number, layoutId: number | null) => {

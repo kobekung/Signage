@@ -14,6 +14,15 @@ import {
     deleteLayout as apiDeleteLayout 
 } from '@/apis';
 
+interface UserInfo {
+  token: string | null;
+  com_id: number | null;
+  account_id: number | null;
+  account_role: string | null;
+  account_name: string | null;
+  account_username: string | null;
+  translation: string;
+}
 // ใช้ temporary ID generator สำหรับ widget ใหม่ที่ยังไม่ลง DB
 const generateTempId = () => `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -35,6 +44,9 @@ type EditorState = {
   isWidgetLoading: boolean;
   hasInitialized: boolean;
   viewState: ViewState;
+  userInfo: UserInfo;
+  setUserInfo: (info: Partial<UserInfo>) => void;
+  logout: () => void;
   
   // Actions
   fetchLayouts: () => Promise<void>; // [NEW]
@@ -85,6 +97,46 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isWidgetLoading: false,
   hasInitialized: false,
   viewState: { scale: 1, panX: 0, panY: 0 },
+
+  userInfo: {
+    token: null,
+    com_id: null,
+    account_id: null,
+    account_role: null,
+    account_name: null,
+    account_username: null,
+    translation: 'EN',
+  },
+
+  // [NEW] Actions for User Info
+  setUserInfo: (info) => {
+      console.log("🔒 Store: Updating User Info", info); // Debug
+      set((state) => ({
+        userInfo: { ...state.userInfo, ...info }
+      }));
+  },
+
+  logout: () => {
+    // ลบ Token จาก Storage ด้วย
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+    }
+    // Reset State
+    set((state) => ({
+        userInfo: {
+            token: null,
+            com_id: null,
+            account_id: null,
+            account_role: null,
+            account_name: null,
+            account_username: null,
+            translation: 'EN',
+        },
+        // อาจจะ reset view ด้วยถ้าต้องการ
+        currentView: 'dashboard',
+        layout: null
+    }));
+  },
 
   // [NEW] Fetch Layouts from Backend
   fetchLayouts: async () => {
@@ -152,6 +204,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         console.error("Failed to delete layout", error);
     }
   },
+  
 
   saveCurrentLayout: async () => {
     const currentLayout = get().layout;

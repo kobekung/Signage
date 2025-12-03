@@ -14,9 +14,14 @@ interface ImagePropertiesProps {
   widget: Widget; // [FIX] Widget ไม่ต้องมี Generic <...> แล้ว
 }
 
-const API_UPLOAD_URL = process.env.NEXT_PUBLIC_API_URL 
-  ? `${process.env.NEXT_PUBLIC_API_URL.replace('/api', '')}/api/upload`
-  : 'http://localhost:5000/api/upload';
+// [FIX] อ่านค่าแบบตรงไปตรงมา
+const BASE_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+// ลบ / ตัวสุดท้ายออก (ถ้ามี) เพื่อกันเหนียวเรื่อง Slash เบิ้ล
+const CLEAN_BASE_API = BASE_API.replace(/\/$/, ''); 
+
+// ต่อ String ตรงๆ (สมมติว่า BASE_API คือ .../api เสมอ)
+const API_UPLOAD_URL = `${CLEAN_BASE_API}/upload`;
 
 export default function ImageProperties({ widget }: ImagePropertiesProps) {
   const updateWidgetProperties = useEditorStore(state => state.updateWidgetProperties);

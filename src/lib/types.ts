@@ -74,7 +74,7 @@ export type TemplateType = 'blank' | 'split-horizontal' | 'split-vertical' | 'si
 export interface Bus {
   bus_id: number;
   bus_name: string;
-  device_id: string;
+  bus_device_id: string;
   bus_com_id: number;
   current_layout_id: number | null;
   current_layout?: Layout; 
