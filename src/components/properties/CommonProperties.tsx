@@ -56,9 +56,7 @@ export default function CommonProperties({ widget }: CommonPropertiesProps) {
             </Select>
         </div>
 
-        {/* [REMOVED] Location Trigger Section ออกจากตรงนี้ */}
-
-        {/* Dimensions & Position */}
+        {/* Dimensions & Position (ไม่มี Location Trigger แล้ว) */}
         <div className="space-y-3">
             <h4 className="font-medium text-sm text-muted-foreground">Dimensions & Position</h4>
             <div className="grid grid-cols-2 gap-3">

@@ -1,5 +1,5 @@
 'use client';
-import { Widget, TickerWidgetProperties } from '@/lib/types';
+import { Widget, WidgetProperties } from '@/lib/types'; // [FIX] ใช้ WidgetProperties
 import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,23 +9,21 @@ import { Slider } from '@/components/ui/slider';
 import { useDebouncedCallback } from 'use-debounce';
 
 interface TickerPropertiesProps {
-  widget: Widget<TickerWidgetProperties>;
+  widget: Widget; // [FIX] ไม่ต้อง Generic
 }
 
 export default function TickerProperties({ widget }: TickerPropertiesProps) {
   const updateWidgetProperties = useEditorStore(state => state.updateWidgetProperties);
   
-  const debouncedDispatch = useDebouncedCallback((newProps: Partial<TickerWidgetProperties>) => {
+  const debouncedDispatch = useDebouncedCallback((newProps: Partial<WidgetProperties>) => {
     updateWidgetProperties({
       id: widget.id,
       properties: { ...widget.properties, ...newProps },
     });
   }, 300);
 
-  const updateProperties = (newProps: Partial<TickerWidgetProperties>) => {
-     // Optimistic UI update
+  const updateProperties = (newProps: Partial<WidgetProperties>) => {
     Object.assign(widget.properties, newProps);
-    // Debounced state update
     debouncedDispatch(newProps);
   };
 
@@ -37,14 +35,16 @@ export default function TickerProperties({ widget }: TickerPropertiesProps) {
             <Textarea
                 id="text"
                 name="text"
-                defaultValue={widget.properties.text}
+                // [FIX] ใส่ || '' กัน undefined
+                defaultValue={widget.properties.text || ''}
                 onChange={(e) => updateProperties({ text: e.target.value })}
             />
         </div>
         <div className="space-y-2">
             <Label htmlFor="direction">Direction</Label>
             <Select
-                value={widget.properties.direction}
+                // [FIX] ใส่ || 'left'
+                value={widget.properties.direction || 'left'}
                 onValueChange={(value: 'left' | 'right' | 'up' | 'down') => updateProperties({ direction: value })}
             >
                 <SelectTrigger>
@@ -59,9 +59,10 @@ export default function TickerProperties({ widget }: TickerPropertiesProps) {
             </Select>
         </div>
         <div className="space-y-2">
-            <Label>Speed: {widget.properties.speed}px/s</Label>
+            <Label>Speed: {widget.properties.speed || 50}px/s</Label>
             <Slider
-                defaultValue={[widget.properties.speed]}
+                // [FIX] ใส่ || 50 กัน undefined (แก้ Error ที่คุณเจอตรงนี้)
+                defaultValue={[widget.properties.speed || 50]}
                 min={10}
                 max={200}
                 step={10}
@@ -75,7 +76,8 @@ export default function TickerProperties({ widget }: TickerPropertiesProps) {
                     id="textColor"
                     name="textColor"
                     type="color"
-                    defaultValue={widget.properties.textColor}
+                    // [FIX] ใส่ Default Color
+                    defaultValue={widget.properties.textColor || '#000000'}
                     onChange={(e) => updateProperties({ textColor: e.target.value })}
                     className="p-1"
                 />
@@ -86,7 +88,8 @@ export default function TickerProperties({ widget }: TickerPropertiesProps) {
                     id="backgroundColor"
                     name="backgroundColor"
                     type="color"
-                    defaultValue={widget.properties.backgroundColor}
+                    // [FIX] ใส่ Default Color
+                    defaultValue={widget.properties.backgroundColor || '#ffffff'}
                     onChange={(e) => updateProperties({ backgroundColor: e.target.value })}
                     className="p-1"
                 />
@@ -97,7 +100,8 @@ export default function TickerProperties({ widget }: TickerPropertiesProps) {
                     id="fontSize"
                     name="fontSize"
                     type="number"
-                    defaultValue={widget.properties.fontSize}
+                    // [FIX] ใส่ Default Size
+                    defaultValue={widget.properties.fontSize || 24}
                     onChange={(e) => updateProperties({ fontSize: Number(e.target.value) })}
                 />
             </div>

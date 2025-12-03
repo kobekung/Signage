@@ -1,20 +1,22 @@
-// 'use server'; // <--- ลบบรรทัดนี้ออก (ห้ามมี use server ใน static export)
+// 'use server';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { WidgetType } from '@/lib/types';
+import { WidgetType, WidgetProperties } from '@/lib/types'; // [1] เพิ่ม WidgetProperties
 
-// ลบ import ที่เกี่ยวกับ AI ออกให้หมด เพราะ Static Web รัน Genkit ไม่ได้
-// import { suggestWidgetDefaults } from '@/ai/flows/intelligent-widget-defaults'; 
-
-export async function getWidgetDefaults(widgetType: WidgetType) {
-  // Logic แบบ Manual Fallback (ทำงานได้บน Browser)
+// [2] กำหนด Return Type เป็น Promise<WidgetProperties>
+export async function getWidgetDefaults(widgetType: WidgetType): Promise<WidgetProperties> {
   
   if (widgetType === 'text') {
     return { content: 'New Text', color: '#000000', fontSize: 24 };
   }
   
   if (widgetType === 'clock') {
-    return { showSeconds: true, format: '24h', color: '#000000', fontSize: 48 };
+    return { 
+        showSeconds: true, 
+        format: '24h', // ตอนนี้ TS จะรู้แล้วว่านี่คือ Type "24h" ไม่ใช่ string
+        color: '#000000', 
+        fontSize: 48 
+    };
   }
   
   if (widgetType === 'image' || widgetType === 'video') {
@@ -32,7 +34,7 @@ export async function getWidgetDefaults(widgetType: WidgetType) {
   
   if (widgetType === 'ticker') {
       return {
-          text: 'Welcome to Digital Signage',
+          text: 'This is a sample scrolling text. Change it in the properties panel!',
           direction: 'left',
           speed: 50,
           textColor: '#000000',

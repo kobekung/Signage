@@ -7,33 +7,45 @@ export interface PlaylistItem {
   url: string;
   type: 'image' | 'video';
   duration: number;
-  // [NEW] ย้ายมาอยู่ที่นี่
-  locationId?: string;
-  fullscreen?: boolean;
+  locationId?: string; // [NEW] ย้ายมาอยู่ที่นี่
+  fullscreen?: boolean; // [NEW]
 }
 
+// รวม Properties ทุกอย่างไว้ในนี้ เพื่อความยืดหยุ่นของ Database
 export interface WidgetProperties {
-    // [REMOVE] ลบ fullscreen และ locationId ออกจากตรงกลาง
-    // (เหลือไว้แค่ props ทั่วไป)
-    playlist?: PlaylistItem[];
+    // Common / Text / Ticker
     content?: string;
     text?: string;
-    url?: string;
     color?: string;
     textColor?: string;
     backgroundColor?: string;
     fontSize?: number;
     speed?: number;
     direction?: 'left' | 'right' | 'up' | 'down';
+    
+    // Media
+    url?: string;
     fitMode?: 'cover' | 'contain' | 'fill';
+    playlist?: PlaylistItem[];
+    
+    // Clock
     showSeconds?: boolean;
     format?: '12h' | '24h';
     timezone?: string;
     
-    [key: string]: any;
+    // Others
+    [key: string]: any; // อนุญาตให้ใส่ค่าอื่นๆ ได้
 }
 
-export interface Widget {
+// [FIX] สร้าง Alias ชื่อเดิม เพื่อให้ไฟล์ Properties อื่นๆ ไม่ Error
+export type TextWidgetProperties = WidgetProperties;
+export type ClockWidgetProperties = WidgetProperties;
+export type ImageWidgetProperties = WidgetProperties;
+export type TickerWidgetProperties = WidgetProperties;
+export type WebviewWidgetProperties = WidgetProperties;
+
+// Widget Generic
+export interface Widget<T = WidgetProperties> {
   id: string;
   type: WidgetType;
   x: number;
@@ -41,11 +53,11 @@ export interface Widget {
   width: number;
   height: number;
   zIndex: number;
-  properties: WidgetProperties;
+  properties: T;
 }
 
 export interface Layout {
-  id: string;
+  id: string | number; // รองรับทั้ง String/Int
   name: string;
   description?: string;
   width: number;
