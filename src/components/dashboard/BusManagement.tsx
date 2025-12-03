@@ -61,7 +61,7 @@ export default function BusManagement() {
       await assignBusLayout(busId, layoutId);
       toast({ title: "Updated", description: "Layout assigned successfully" });
       setBuses(prev => prev.map(b => 
-        b.id === busId ? { ...b, current_layout_id: layoutId } : b
+        b.bus_id === busId ? { ...b, current_layout_id: layoutId } : b
       ));
     } catch (e) {
       toast({ title: "Error", description: "Failed to assign layout", variant: "destructive" });
@@ -104,15 +104,15 @@ export default function BusManagement() {
               </TableHeader>
               <TableBody>
                 {buses.map((bus) => (
-                  <TableRow key={bus.id}>
-                    <TableCell className="font-medium">{bus.name}</TableCell>
+                  <TableRow key={bus.bus_id}>
+                    <TableCell className="font-medium">{bus.bus_name}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{bus.device_id}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <MonitorPlay size={16} className="text-muted-foreground"/>
                         <Select 
                             value={bus.current_layout_id?.toString() || 'none'} 
-                            onValueChange={(val) => handleAssignLayout(bus.id, val)}
+                            onValueChange={(val) => handleAssignLayout(bus.bus_id, val)}
                         >
                             <SelectTrigger className="w-[250px] h-8">
                                 <SelectValue placeholder="Select Layout" />

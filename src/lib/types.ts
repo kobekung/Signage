@@ -72,10 +72,10 @@ export interface Layout {
 export type TemplateType = 'blank' | 'split-horizontal' | 'split-vertical' | 'sidebar-left' | 'quad-grid' | 'three-cols' | 'three-rows' | 'header-sidebar';
 
 export interface Bus {
-  id: number;
-  name: string;
+  bus_id: number;
+  bus_name: string;
   device_id: string;
-  company_id: number;
+  bus_com_id: number;
   current_layout_id: number | null;
   current_layout?: Layout; 
   updated_at?: string;

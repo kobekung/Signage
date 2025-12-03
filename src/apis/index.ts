@@ -9,7 +9,7 @@ const COMPANY_ID = 1;
 // Helper สำหรับ Headers
 const getHeaders = () => ({
   'Content-Type': 'application/json',
-  'x-company-id': COMPANY_ID.toString(),
+  'com_id': COMPANY_ID.toString(),
 });
 
 // --- Mapper Functions (เดิม) ---
@@ -124,7 +124,7 @@ export const deleteLayout = async (id: string): Promise<void> => {
 // --- [NEW] Buses APIs ---
 
 export const getBuses = async (): Promise<Bus[]> => {
-  const res = await fetch(`${API_BASE_URL}/buses?company_id=${COMPANY_ID}`, {
+  const res = await fetch(`${API_BASE_URL}/bus/signage?company_id=${COMPANY_ID}`, {
       headers: getHeaders()
   });
   if (!res.ok) throw new Error('Failed to fetch buses');
@@ -132,13 +132,13 @@ export const getBuses = async (): Promise<Bus[]> => {
 };
 
 export const createBus = async (name: string, deviceId: string): Promise<Bus> => {
-  const res = await fetch(`${API_BASE_URL}/buses`, {
+  const res = await fetch(`${API_BASE_URL}/bus/signage`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ 
-          name, 
+          bus_name: name, 
           device_id: deviceId, 
-          company_id: COMPANY_ID 
+          bus_com_id: COMPANY_ID 
       }),
   });
   if (!res.ok) throw new Error('Failed to create bus');
@@ -146,7 +146,7 @@ export const createBus = async (name: string, deviceId: string): Promise<Bus> =>
 };
 
 export const assignBusLayout = async (busId: number, layoutId: number | null) => {
-  const res = await fetch(`${API_BASE_URL}/buses/${busId}/assign`, {
+  const res = await fetch(`${API_BASE_URL}/bus/${busId}/assign`, {
       method: 'PUT',
       headers: getHeaders(),
       body: JSON.stringify({ layout_id: layoutId }),
