@@ -188,9 +188,9 @@ export default function BusManagement() {
                             <Button variant="ghost" size="icon" onClick={() => openEditModal(bus)}>
                                 <Pencil size={16} className="text-blue-600" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteBus(bus.bus_id)}>
+                            {/* <Button variant="ghost" size="icon" onClick={() => handleDeleteBus(bus.bus_id)}>
                                 <Trash2 size={16} className="text-red-600" />
-                            </Button>
+                            </Button> */}
                         </div>
                     </TableCell>
                   </TableRow>

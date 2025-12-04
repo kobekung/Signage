@@ -31,7 +31,7 @@ export default function LeftSidebar() {
             </svg>
             <h1 className="text-xl font-bold text-foreground">Signage Canvas</h1>
         </div>
-        <nav className="flex flex-col gap-2">
+        {/* <nav className="flex flex-col gap-2">
           {navItems.map((item) => (
             <Button
               key={item.label}
@@ -45,7 +45,7 @@ export default function LeftSidebar() {
               </Link>
             </Button>
           ))}
-        </nav>
+        </nav> */}
       </div>
       <div>
         <Button
@@ -53,10 +53,10 @@ export default function LeftSidebar() {
             className="justify-start gap-3 w-full"
             asChild
           >
-            <Link href="#">
+            {/* <Link href="#">
               <Settings className="h-5 w-5" />
               <span>Settings</span>
-            </Link>
+            </Link> */}
         </Button>
       </div>
     </aside>

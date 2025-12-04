@@ -3,17 +3,17 @@
 import { useEditorStore } from '@/stores';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Monitor, Edit, Bus, LogOut } from 'lucide-react'; // [NEW] เพิ่ม LogOut Icon
+import { Plus, Trash2, Monitor, Edit, Bus, LogOut, AlertTriangle } from 'lucide-react'; // [1] เพิ่ม AlertTriangle
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useEffect } from 'react';
 import TemplateSelectionModal from '../editor/TemplateSelectionModal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+// [2] เพิ่ม DialogDescription เข้ามา
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { TemplateType } from '@/lib/types';
 
 export default function Dashboard() {
-  // [NEW] ดึง logout มาจาก Store
   const { 
     savedLayouts, 
     deleteLayout, 
@@ -26,6 +26,10 @@ export default function Dashboard() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
+  
+  // [3] State สำหรับเก็บ ID ของ Layout ที่ต้องการลบ (ถ้ามีค่า = เปิด Modal)
+  const [layoutToDelete, setLayoutToDelete] = useState<string | null>(null);
+
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | null>(null);
   const [newLayoutName, setNewLayoutName] = useState('');
   const MASS_APP_URL = process.env.NEXT_PUBLIC_MASS_APP_URL || 'https://mass.bussing.app';
@@ -49,12 +53,20 @@ export default function Dashboard() {
     }
   };
 
-  // [NEW] ฟังก์ชัน Logout
+  // [4] ฟังก์ชันลบจริงๆ เมื่อกดยืนยันใน Modal
+  const handleConfirmDelete = async () => {
+    if (layoutToDelete) {
+        await deleteLayout(layoutToDelete);
+        await fetchLayouts(); // โหลดข้อมูลใหม่
+        setLayoutToDelete(null); // ปิด Modal
+    }
+  };
+
   const handleLogout = () => {
       if (confirm("Are you sure you want to logout?")) {
-          logout(); // ล้าง Token
-          // ดีดกลับไปหน้า Mass App
-          window.location.href = MASS_APP_URL+'/?signage=true'; 
+          logout(); 
+          const currentUrl = window.location.origin + window.location.pathname; 
+          window.location.href = MASS_APP_URL+`/?redirect_url=${currentUrl}`; 
       }
   };
 
@@ -76,7 +88,6 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-1">Manage your digital signage screens.</p>
           </div>
           <div className="flex gap-2">
-              {/* [NEW] ปุ่ม Logout */}
               <Button variant="ghost" className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleLogout}>
                 <LogOut size={20} /> Logout
               </Button>
@@ -134,7 +145,17 @@ export default function Dashboard() {
                 <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); editLayout(layout.id.toString()); }}>
                     <Edit size={16} className="mr-2" /> Edit
                 </Button>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); deleteLayout(layout.id.toString()); }}>
+                
+                {/* [5] แก้ไขปุ่มลบ ให้เรียกใช้ setLayoutToDelete แทนการลบเลย */}
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10" 
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setLayoutToDelete(layout.id.toString()); 
+                    }}
+                >
                     <Trash2 size={16} />
                 </Button>
               </CardFooter>
@@ -177,6 +198,37 @@ export default function Dashboard() {
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsNameDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleCreateConfirm} disabled={!newLayoutName.trim()}>Create Layout</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* [6] Dialog ยืนยันการลบ */}
+      <Dialog open={!!layoutToDelete} onOpenChange={(open) => !open && setLayoutToDelete(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-red-100 rounded-full">
+                        <AlertTriangle className="h-6 w-6 text-red-600" />
+                    </div>
+                    <div>
+                        <DialogTitle className="text-xl">Delete Layout?</DialogTitle>
+                        <DialogDescription className="mt-2 text-slate-500">
+                            Are you sure you want to delete this layout? This action cannot be undone.
+                        </DialogDescription>
+                    </div>
+                </div>
+            </DialogHeader>
+            <DialogFooter className="mt-4 gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setLayoutToDelete(null)}>
+                    Cancel
+                </Button>
+                <Button 
+                    variant="destructive" 
+                    onClick={handleConfirmDelete}
+                    className="bg-red-600 hover:bg-red-700"
+                >
+                    Confirm Delete
+                </Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
