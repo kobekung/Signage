@@ -146,7 +146,7 @@ export const createBus = async (name: string, deviceId: string): Promise<Bus> =>
       headers: getHeaders(),
       body: JSON.stringify({ 
           bus_name: name, 
-          device_id: deviceId, 
+          bus_device_id: deviceId, 
           bus_com_id: userInfo.com_id 
       }),
   });

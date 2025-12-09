@@ -53,6 +53,7 @@
     "react-dom": "^18.3.1",
     "react-fast-marquee": "^1.6.5",
     "react-rnd": "^10.4.10",
+    "react-toastify": "^11.0.5",
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
