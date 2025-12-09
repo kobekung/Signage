@@ -1,5 +1,6 @@
 'use client';
-import { Widget, WidgetProperties, PlaylistItem } from '@/lib/types'; // [FIX] ใช้ WidgetProperties
+
+import { Widget, WidgetProperties, PlaylistItem } from '@/lib/types';
 import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,31 +10,37 @@ import { useDebouncedCallback } from 'use-debounce';
 import { useRef, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ImagePropertiesProps {
-  widget: Widget; // [FIX] Widget ไม่ต้องมี Generic <...> แล้ว
+  widget: Widget;
 }
 
-// [FIX] อ่านค่าแบบตรงไปตรงมา
 const BASE_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-
-// ลบ / ตัวสุดท้ายออก (ถ้ามี) เพื่อกันเหนียวเรื่อง Slash เบิ้ล
 const CLEAN_BASE_API = BASE_API.replace(/\/$/, ''); 
-
-// ต่อ String ตรงๆ (สมมติว่า BASE_API คือ .../api เสมอ)
 const API_UPLOAD_URL = `${CLEAN_BASE_API}/upload`;
 
 export default function ImageProperties({ widget }: ImagePropertiesProps) {
   const updateWidgetProperties = useEditorStore(state => state.updateWidgetProperties);
   
-  // cast properties ให้เป็น WidgetProperties (เผื่อบางที TS งง) แต่จริงๆ widget.properties ก็เป็น type นี้อยู่แล้ว
   const properties = widget.properties;
   const { playlist = [] } = properties;
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // เพิ่ม State สำหรับเก็บ ID ตัวที่จะลบ (ใช้คุม Dialog)
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-  // [FIX] ใช้ Partial<WidgetProperties> แทน ImageWidgetProperties
   const debouncedUpdate = useDebouncedCallback((newProps: Partial<WidgetProperties>) => {
     updateWidgetProperties({
       id: widget.id,
@@ -41,7 +48,6 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
     });
   }, 300);
 
-  // [FIX] ใช้ Partial<WidgetProperties>
   const updateProperties = (newProps: Partial<WidgetProperties>) => {
     Object.assign(widget.properties, newProps);
     debouncedUpdate(newProps);
@@ -59,8 +65,9 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
   };
   
   const handleAddItemByUrl = () => {
+    // สร้าง ID แบบสุ่มป้องกัน Key ซ้ำ ซึ่งเป็นสาเหตุหนึ่งของ Error
     const newItem: PlaylistItem = {
-      id: `media-${Date.now()}`,
+      id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       url: 'https://picsum.photos/400/300',
       type: 'image',
       duration: 10,
@@ -68,9 +75,14 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
     updatePlaylist([...playlist, newItem]);
   };
 
-  const handleDeleteItem = (itemId: string) => {
-    const newPlaylist = playlist.filter(item => item.id !== itemId);
-    updatePlaylist(newPlaylist);
+  // ฟังก์ชันลบอย่างปลอดภัย (Safe Delete)
+  const confirmDelete = () => {
+    if (itemToDelete) {
+        // ใช้การ filter แทนการ splice เพื่อความปลอดภัยของ React State
+        const newPlaylist = playlist.filter(item => item.id !== itemToDelete);
+        updatePlaylist(newPlaylist);
+        setItemToDelete(null); // ปิด Dialog และเคลียร์ค่า
+    }
   };
 
   const handleUploadClick = () => {
@@ -115,7 +127,7 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
         }
         
         const newItem: PlaylistItem = {
-            id: `media-${Date.now()}`,
+            id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             url: realUrl, 
             type: fileType,
             duration: duration,
@@ -182,6 +194,7 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
         </div>
       </div>
 
+      {/* Playlist Items */}
       <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
         {playlist.map((item, index) => (
           <div key={item.id} className="p-3 border rounded-lg space-y-3 bg-muted/20">
@@ -189,8 +202,14 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
                 <Label className="font-semibold truncate pr-2">
                     Item {index + 1}: {item.type}
                 </Label>
-                <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleDeleteItem(item.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
+                {/* เปลี่ยนปุ่มลบให้เรียก setItemToDelete เพื่อเปิด Dialog */}
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7 flex-shrink-0 hover:bg-red-100 hover:text-red-600" 
+                    onClick={() => setItemToDelete(item.id)}
+                >
+                    <Trash2 className="h-4 w-4" />
                 </Button>
             </div>
             
@@ -249,10 +268,34 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
 
           </div>
         ))}
+        
         {playlist.length === 0 && (
-            <p className="text-center text-muted-foreground p-4">The playlist is empty.</p>
+            <p className="text-center text-muted-foreground p-4 text-sm">No items in playlist.</p>
         )}
       </div>
+
+      {/* AlertDialog สำหรับยืนยันการลบ */}
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm deletion?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Do you want to remove this item from the playlist? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete} 
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Confirm deletion
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
