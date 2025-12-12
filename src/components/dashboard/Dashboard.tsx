@@ -1,82 +1,113 @@
 'use client';
 
-import { useEditorStore } from '@/stores';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Monitor, Edit, Bus, LogOut, AlertTriangle } from 'lucide-react'; // [1] เพิ่ม AlertTriangle
-import { formatDistanceToNow } from 'date-fns';
-import { useState, useEffect } from 'react';
-import TemplateSelectionModal from '../editor/TemplateSelectionModal';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-// [2] เพิ่ม DialogDescription เข้ามา
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { TemplateType } from '@/lib/types';
+import { useEditorStore } from "@/stores";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Plus,
+  Trash2,
+  Monitor,
+  Edit,
+  Bus,
+  LogOut,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight // Import icon สำหรับ pagination
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useState, useEffect } from "react";
+import TemplateSelectionModal from "../editor/TemplateSelectionModal";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { TemplateType } from "@/lib/types";
+import LayoutThumbnail from "./LayoutThumbnail";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
-  const { 
-    savedLayouts, 
-    deleteLayout, 
-    editLayout, 
-    createLayout, 
-    fetchLayouts, 
+  const {
+    savedLayouts,
+    isLayoutsLoading,
+    pagination, // [NEW] ดึง pagination state จาก store
+    deleteLayout,
+    editLayout,
+    createLayout,
+    fetchLayouts,
     navigateToBuses,
-    logout 
+    logout,
   } = useEditorStore();
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
-  
-  // [3] State สำหรับเก็บ ID ของ Layout ที่ต้องการลบ (ถ้ามีค่า = เปิด Modal)
   const [layoutToDelete, setLayoutToDelete] = useState<string | null>(null);
-
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | null>(null);
-  const [newLayoutName, setNewLayoutName] = useState('');
-  const MASS_APP_URL = process.env.NEXT_PUBLIC_MASS_APP_URL || 'https://mass.bussing.app';
+  const [newLayoutName, setNewLayoutName] = useState("");
+  const MASS_APP_URL = process.env.NEXT_PUBLIC_MASS_APP_URL || "https://mass.bussing.app";
 
   useEffect(() => {
-    fetchLayouts();
+    fetchLayouts(1); // Fetch หน้าแรกเสมอเมื่อเข้ามาใหม่
   }, []);
 
   const handleTemplateSelect = (template: TemplateType) => {
     setSelectedTemplate(template);
     setIsModalOpen(false);
-    const templateName = String(template); 
-    setNewLayoutName(`${templateName.charAt(0).toUpperCase() + templateName.slice(1)} Layout`);
+    const templateName = String(template);
+    setNewLayoutName(
+      `${templateName.charAt(0).toUpperCase() + templateName.slice(1)} Layout`
+    );
     setIsNameDialogOpen(true);
   };
 
   const handleCreateConfirm = () => {
     if (selectedTemplate) {
-        createLayout(newLayoutName, selectedTemplate);
-        setIsNameDialogOpen(false);
+      createLayout(newLayoutName, selectedTemplate);
+      setIsNameDialogOpen(false);
     }
   };
 
-  // [4] ฟังก์ชันลบจริงๆ เมื่อกดยืนยันใน Modal
   const handleConfirmDelete = async () => {
     if (layoutToDelete) {
-        await deleteLayout(layoutToDelete);
-        await fetchLayouts(); // โหลดข้อมูลใหม่
-        setLayoutToDelete(null); // ปิด Modal
+      await deleteLayout(layoutToDelete);
+      // ไม่ต้อง fetchLayouts() ตรงนี้เพราะ deleteLayout ใน store ทำให้อยู่แล้ว
+      setLayoutToDelete(null);
     }
   };
 
   const handleLogout = () => {
-      if (confirm("Are you sure you want to logout?")) {
-          logout(); 
-          const currentUrl = window.location.origin + window.location.pathname; 
-          window.location.href = MASS_APP_URL+`/?redirect_url=${currentUrl}`; 
-      }
+    if (confirm("Are you sure you want to logout?")) {
+      logout();
+      const currentUrl = window.location.origin + window.location.pathname;
+      window.location.href = MASS_APP_URL + `/?redirect_url=${currentUrl}`;
+    }
+  };
+  
+  // [NEW] ฟังก์ชันเปลี่ยนหน้า
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+        fetchLayouts(newPage);
+    }
   };
 
   const formatDate = (dateString?: string | Date) => {
-      if (!dateString) return 'Unknown';
-      try {
-          return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-      } catch (e) {
-          return 'Invalid Date';
-      }
+    if (!dateString) return "Unknown";
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch (e) {
+      return "Invalid Date";
+    }
   };
 
   return (
@@ -85,89 +116,149 @@ export default function Dashboard() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Layouts</h1>
-            <p className="text-muted-foreground mt-1">Manage your digital signage screens.</p>
+            <p className="text-muted-foreground mt-1">
+              Manage your digital signage screens.
+            </p>
           </div>
           <div className="flex gap-2">
-              <Button variant="ghost" className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleLogout}>
-                <LogOut size={20} /> Logout
-              </Button>
+            <Button
+              variant="ghost"
+              className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut size={20} /> Logout
+            </Button>
 
-              <Button variant="outline" size="lg" className="gap-2" onClick={navigateToBuses}>
-                <Bus size={20} /> Manage Buses
-              </Button>
-              
-              <Button onClick={() => setIsModalOpen(true)} size="lg" className="gap-2">
-                <Plus size={20} /> Create New Layout
-              </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              onClick={navigateToBuses}
+            >
+              <Bus size={20} /> Manage Buses
+            </Button>
+
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              size="lg"
+              className="gap-2"
+            >
+              <Plus size={20} /> Create New Layout
+            </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {savedLayouts.map((layout) => (
-            <Card key={layout.id} className="group hover:shadow-lg transition-all duration-200 overflow-hidden border-muted-foreground/20 cursor-pointer" onClick={() => editLayout(layout.id.toString())}>
-              <div className="aspect-video bg-slate-100 relative group-hover:opacity-90 transition-opacity border-b">
-                <div className="absolute inset-0 flex items-center justify-center text-slate-300">
-                    <Monitor size={48} />
-                </div>
-                <div className="absolute inset-0 p-4 opacity-60 pointer-events-none">
-                    <div 
-                        className="w-full h-full relative bg-white shadow-sm border"
-                        style={{ aspectRatio: `${layout.width}/${layout.height}` }}
-                    >
-                        {layout.widgets.map((w, i) => (
-                            <div 
-                                key={i} 
-                                className="absolute bg-blue-500/20 border border-blue-500/50"
-                                style={{
-                                    left: `${(w.x / layout.width) * 100}%`,
-                                    top: `${(w.y / layout.height) * 100}%`,
-                                    width: `${(w.width / layout.width) * 100}%`,
-                                    height: `${(w.height / layout.height) * 100}%`,
-                                }}
-                            />
-                        ))}
-                    </div>
+        {/* Loading State */}
+        {isLayoutsLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex flex-col space-y-3">
+                <Skeleton className="h-[200px] w-full rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
                 </div>
               </div>
-
-              <CardHeader className="pb-2 pt-4">
-                <CardTitle className="text-lg truncate">{layout.name}</CardTitle>
-              </CardHeader>
-              
-              <CardContent className="pb-2">
-                <div className="text-xs text-muted-foreground flex flex-col gap-1">
-                    <span>Resolution: {layout.width} x {layout.height} px</span>
-                    <span>Updated: {formatDate(layout.updatedAt)}</span>
+            ))}
+          </div>
+        ) : (
+          /* Layouts Grid */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {savedLayouts.map((layout) => (
+              <Card
+                key={layout.id}
+                className="group hover:shadow-lg transition-all duration-200 overflow-hidden border-muted-foreground/20 cursor-pointer"
+                onClick={() => editLayout(layout.id.toString())}
+              >
+                <div className="aspect-video bg-slate-100 relative border-b overflow-hidden">
+                  <LayoutThumbnail
+                    width={layout.width}
+                    height={layout.height}
+                    widgets={layout.widgets || []}
+                    thumbnailUrl={layout.thumbnail}
+                    scale={0.2}
+                  />
                 </div>
-              </CardContent>
 
-              <CardFooter className="flex justify-end gap-2 pt-2 border-t bg-muted/5">
-                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); editLayout(layout.id.toString()); }}>
+                <CardHeader className="pb-2 pt-4">
+                  <CardTitle className="text-lg truncate">
+                    {layout.name}
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent className="pb-2">
+                  <div className="text-xs text-muted-foreground flex flex-col gap-1">
+                    <span>
+                      Resolution: {layout.width} x {layout.height} px
+                    </span>
+                    <span>Updated: {formatDate(layout.updatedAt)}</span>
+                  </div>
+                </CardContent>
+
+                <CardFooter className="flex justify-end gap-2 pt-2 border-t bg-muted/5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      editLayout(layout.id.toString());
+                    }}
+                  >
                     <Edit size={16} className="mr-2" /> Edit
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLayoutToDelete(layout.id.toString());
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLayoutsLoading && savedLayouts.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground space-y-4 border-2 border-dashed rounded-xl bg-white/50 mt-6">
+            <Monitor size={64} className="opacity-20" />
+            <p className="text-lg">No layouts found.</p>
+            <Button onClick={() => setIsModalOpen(true)}>
+              Create your first layout
+            </Button>
+          </div>
+        )}
+
+        {/* [NEW] Pagination Controls */}
+        {!isLayoutsLoading && savedLayouts.length > 0 && (
+            <div className="flex items-center justify-center gap-4 mt-8 pb-8">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page <= 1}
+                >
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                 </Button>
                 
-                {/* [5] แก้ไขปุ่มลบ ให้เรียกใช้ setLayoutToDelete แทนการลบเลย */}
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10" 
-                    onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setLayoutToDelete(layout.id.toString()); 
-                    }}
-                >
-                    <Trash2 size={16} />
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                <span className="text-sm text-muted-foreground">
+                    Page {pagination.page} of {pagination.totalPages}
+                </span>
 
-        {savedLayouts.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground space-y-4 border-2 border-dashed rounded-xl bg-white/50">
-                <Monitor size={64} className="opacity-20" />
-                <p className="text-lg">No layouts found.</p>
-                <Button onClick={() => setIsModalOpen(true)}>Create your first layout</Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={pagination.page >= pagination.totalPages}
+                >
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
             </div>
         )}
       </div>
@@ -180,56 +271,69 @@ export default function Dashboard() {
 
       <Dialog open={isNameDialogOpen} onOpenChange={setIsNameDialogOpen}>
         <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Name your Layout</DialogTitle>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="name">Layout Name</Label>
-                    <Input 
-                        id="name" 
-                        value={newLayoutName} 
-                        onChange={(e) => setNewLayoutName(e.target.value)} 
-                        placeholder="e.g., Lobby Morning Screen"
-                        autoFocus
-                    />
-                </div>
+          <DialogHeader>
+            <DialogTitle>Name your Layout</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Layout Name</Label>
+              <Input
+                id="name"
+                value={newLayoutName}
+                onChange={(e) => setNewLayoutName(e.target.value)}
+                placeholder="e.g., Lobby Morning Screen"
+                autoFocus
+              />
             </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setIsNameDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreateConfirm} disabled={!newLayoutName.trim()}>Create Layout</Button>
-            </DialogFooter>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsNameDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateConfirm}
+              disabled={!newLayoutName.trim()}
+            >
+              Create Layout
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* [6] Dialog ยืนยันการลบ */}
-      <Dialog open={!!layoutToDelete} onOpenChange={(open) => !open && setLayoutToDelete(null)}>
+      <Dialog
+        open={!!layoutToDelete}
+        onOpenChange={(open) => !open && setLayoutToDelete(null)}
+      >
         <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-red-100 rounded-full">
-                        <AlertTriangle className="h-6 w-6 text-red-600" />
-                    </div>
-                    <div>
-                        <DialogTitle className="text-xl">Delete Layout?</DialogTitle>
-                        <DialogDescription className="mt-2 text-slate-500">
-                            Are you sure you want to delete this layout? This action cannot be undone.
-                        </DialogDescription>
-                    </div>
-                </div>
-            </DialogHeader>
-            <DialogFooter className="mt-4 gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => setLayoutToDelete(null)}>
-                    Cancel
-                </Button>
-                <Button 
-                    variant="destructive" 
-                    onClick={handleConfirmDelete}
-                    className="bg-red-600 hover:bg-red-700"
-                >
-                    Confirm Delete
-                </Button>
-            </DialogFooter>
+          <DialogHeader>
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-red-100 rounded-full">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Delete Layout?</DialogTitle>
+                <DialogDescription className="mt-2 text-slate-500">
+                  Are you sure you want to delete this layout? This action
+                  cannot be undone.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setLayoutToDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Confirm Delete
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

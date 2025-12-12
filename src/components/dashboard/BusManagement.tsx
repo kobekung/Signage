@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useEditorStore } from '@/stores';
 import { Bus, Layout } from '@/lib/types';
-import { getBuses, createBus, assignBusLayout, getLayouts, updateBus, deleteBus } from '@/apis'; // [NEW] import update/delete
+import { getBuses, createBus, assignBusLayout, getLayoutSelect, updateBus, deleteBus } from '@/apis'; // [NEW] import update/delete
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,7 +39,7 @@ export default function BusManagement() {
 
   const loadData = async () => {
     try {
-      const [busesData, layoutsData] = await Promise.all([getBuses(), getLayouts()]);
+      const [busesData, layoutsData] = await Promise.all([getBuses(), getLayoutSelect()]);
       setBuses(busesData);
       setLayouts(layoutsData);
     } catch (e) {

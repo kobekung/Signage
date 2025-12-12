@@ -5,7 +5,7 @@ import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
 import Canvas from './Canvas';
 import Player from '@/components/player/Player';
-import { useEffect, useState, useRef, useCallback, MouseEvent } from 'react';
+import { useEffect, useState, useRef, useCallback, MouseEvent, TouchEvent } from 'react';
 import { PanelLeftClose, PanelRightClose, PanelLeft, PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -41,9 +41,18 @@ export default function EditorLayout() {
   
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
+  // [NEW] เก็บตำแหน่งนิ้วล่าสุดสำหรับ Touch Pan
+  const lastTouchPos = useRef<{x: number, y: number} | null>(null);
 
-  // Modal Logic: Only open if explicit action triggers it, or if somehow layout is empty but initialized
- useEffect(() => {
+  // [NEW] Detect Mobile & Auto-close Right Sidebar
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsRightSidebarOpen(false);
+    }
+  }, []);
+
+  // Modal Logic
+  useEffect(() => {
     if (layout && layout.widgets.length === 0 && !hasInitialized) {
       setIsTemplateModalOpen(true);
     }
@@ -86,7 +95,7 @@ export default function EditorLayout() {
     };
   }, [selectedWidgetId, deleteWidget]);
 
-
+  // --- Mouse Handlers (Desktop) ---
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     if (e.button === 2 || (e.button === 0 && e.nativeEvent.altKey)) {
       e.preventDefault();
@@ -109,6 +118,39 @@ export default function EditorLayout() {
       isPanning.current = false;
       e.currentTarget.style.cursor = 'grab';
     }
+  };
+
+  // --- Touch Handlers (Mobile) ---
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    // ถ้าแตะ 1 นิ้วที่พื้นหลัง (ไม่ใช่บน Widget) ให้เริ่ม Pan
+    // (หมายเหตุ: Rnd Widget จะ StopPropagation เอง ถ้าแตะโดน Widget)
+    if (e.touches.length === 1) {
+        isPanning.current = true;
+        lastTouchPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+
+  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    if (isPanning.current && lastTouchPos.current && e.touches.length === 1) {
+        // Prevent Scrolling while panning canvas
+        // e.preventDefault(); // อาจต้องระวังถ้าใช้ passive listener
+        
+        const touch = e.touches[0];
+        const dx = touch.clientX - lastTouchPos.current.x;
+        const dy = touch.clientY - lastTouchPos.current.y;
+
+        setViewState({
+            panX: viewState.panX + dx,
+            panY: viewState.panY + dy,
+        });
+
+        lastTouchPos.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isPanning.current = false;
+    lastTouchPos.current = null;
   };
   
   const handleWheel = useCallback((e: WheelEvent) => {
@@ -139,7 +181,7 @@ export default function EditorLayout() {
     setIsTemplateModalOpen(false);
   };
 
-  if (!layout) return null; // Should be handled by parent or loading state
+  if (!layout) return null; 
 
   if (isPreviewMode) {
     return <Player layout={layout} />;
@@ -147,24 +189,49 @@ export default function EditorLayout() {
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen w-screen bg-background font-body overflow-hidden">
-        {isLeftSidebarOpen && <LeftSidebar />}
+      <div className="flex h-screen w-screen bg-background font-body overflow-hidden relative">
+        
+        {/* [MODIFIED] Left Sidebar: Absolute on Mobile, Static on Desktop */}
+        {isLeftSidebarOpen && (
+            <>
+                {/* Overlay Backdrop for Mobile */}
+                <div 
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+                    onClick={() => setIsLeftSidebarOpen(false)}
+                />
+                <div className="absolute top-0 left-0 h-full z-50 md:static md:z-0 shadow-xl md:shadow-none bg-background transition-transform">
+                    <LeftSidebar />
+                </div>
+            </>
+        )}
+
         <div className="flex flex-1 flex-col min-w-0">
           <Header />
-          <main className="flex flex-1 min-h-0">
+          <main className="flex flex-1 min-h-0 relative">
+            
             <div 
               ref={canvasContainerRef}
-              className="flex-1 relative bg-muted/40 overflow-hidden cursor-grab"
+              className="flex-1 relative bg-muted/40 overflow-hidden cursor-grab touch-none" // [Added] touch-none
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              // [Added] Touch Events
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               onContextMenu={(e) => e.preventDefault()}
             >
+              {/* Left Toggle Button */}
               <div className="absolute top-2 left-2 z-10">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}>
+                    <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="bg-background/80 backdrop-blur-sm"
+                        onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+                    >
                       {isLeftSidebarOpen ? <PanelLeftClose /> : <PanelLeft />}
                     </Button>
                   </TooltipTrigger>
@@ -173,11 +240,19 @@ export default function EditorLayout() {
                   </TooltipContent>
                 </Tooltip>
               </div>
+
               <Canvas />
+              
+               {/* Right Toggle Button */}
                <div className="absolute top-2 right-2 z-10">
                  <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}>
+                    <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="bg-background/80 backdrop-blur-sm"
+                        onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                    >
                       {isRightSidebarOpen ? <PanelRightClose /> : <PanelRight />}
                     </Button>
                   </TooltipTrigger>
@@ -188,7 +263,21 @@ export default function EditorLayout() {
               </div>
               <ZoomControls />
             </div>
-            {isRightSidebarOpen && <RightSidebar />}
+
+            {/* [MODIFIED] Right Sidebar: Absolute on Mobile, Static on Desktop */}
+            {isRightSidebarOpen && (
+                <>
+                    {/* Overlay Backdrop for Mobile (Optional, currently removed to interact with canvas if needed, but added for focus) */}
+                     <div 
+                        className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+                        onClick={() => setIsRightSidebarOpen(false)}
+                    />
+                    <div className="absolute top-0 right-0 h-full z-50 md:static md:z-0 shadow-xl md:shadow-none bg-background border-l">
+                        <RightSidebar />
+                    </div>
+                </>
+            )}
+
           </main>
         </div>
         <TemplateSelectionModal

@@ -57,10 +57,24 @@ const mapToWidget = (data: any): Widget => {
 
 // --- Layout APIs (อัปเดตให้ส่ง Headers) ---
 
-export const getLayouts = async (): Promise<Layout[]> => {
+export const getLayouts = async (page: number = 1): Promise<{ data: Layout[]; pagination: any }> => {
+  const headers = getHeaders();
+  
+  const res = await fetch(`${API_BASE_URL}/layouts?page=${page}`, { headers }); 
+  
+  if (!res.ok) throw new Error('Failed to fetch layouts');
+  
+  const result = await res.json();
+ 
+  return {
+      data: result.data.map(mapToLayout), // ใช้ mapToLayout ตัวเดิมกับ array ใน data
+      pagination: result.pagination
+  };
+};
+export const getLayoutSelect = async (): Promise<Layout[]> => {
   const headers = getHeaders();
   // ไม่ต้องส่ง query param ถ้า backend อ่าน header ได้ หรือจะส่งไปเผื่อก็ได้
-  const res = await fetch(`${API_BASE_URL}/layouts`, { headers }); 
+  const res = await fetch(`${API_BASE_URL}/layouts/forselection`, { headers }); 
   if (!res.ok) throw new Error('Failed to fetch layouts');
   const data = await res.json();
   return data.map(mapToLayout);

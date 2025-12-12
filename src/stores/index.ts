@@ -8,10 +8,11 @@ import { createLayoutFromTemplate } from '@/lib/template-helpers';
 // Import API functions
 import { 
     getLayouts, 
-    getLayout as apiGetLayout, // [NEW] Import เพิ่ม
+    getLayout as apiGetLayout, 
     createLayout as apiCreateLayout, 
     saveLayout as apiSaveLayout, 
-    deleteLayout as apiDeleteLayout 
+    deleteLayout as apiDeleteLayout, 
+    getLayoutSelect
 } from '@/apis';
 
 interface UserInfo {
@@ -23,7 +24,7 @@ interface UserInfo {
   account_username: string | null;
   translation: string;
 }
-// ใช้ temporary ID generator สำหรับ widget ใหม่ที่ยังไม่ลง DB
+
 const generateTempId = () => `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 type ViewState = {
@@ -33,31 +34,41 @@ type ViewState = {
 };
 type AppView = 'dashboard' | 'editor' | 'buses';
 
-
 type EditorState = {
   currentView: AppView;
   savedLayouts: Layout[];
+  savedLayoutSelected: Layout[];
 
   layout: Layout | null;
   selectedWidgetId: string | null;
   isPreviewMode: boolean;
   isWidgetLoading: boolean;
+  isLayoutsLoading: boolean;
   hasInitialized: boolean;
   viewState: ViewState;
   userInfo: UserInfo;
+  
+  // [NEW] Pagination State
+  pagination: {
+    page: number;
+    totalPages: number;
+    totalItems: number;
+  };
+
   setUserInfo: (info: Partial<UserInfo>) => void;
   logout: () => void;
   
   // Actions
-  fetchLayouts: () => Promise<void>; // [NEW]
-  createLayout: (name: string, template: TemplateType) => Promise<void>; // [Async]
+  fetchLayouts: (page?: number) => Promise<void>; // [MODIFIED] รับ page ได้
+  fetchSelectedLayout: () => Promise<void>; // [NEW]
+  createLayout: (name: string, template: TemplateType) => Promise<void>;
   editLayout: (id: string) => void;
-  deleteLayout: (id: string) => Promise<void>; // [Async]
-  saveCurrentLayout: () => Promise<void>; // [Async]
+  deleteLayout: (id: string) => Promise<void>;
+  saveCurrentLayout: () => Promise<void>;
   backToDashboard: () => void;
   navigateToBuses: () => void;
 
-  // ... Editor actions (เหมือนเดิม) ...
+  // Editor actions
   loadLayout: (layout: Layout) => void;
   selectWidget: (widgetId: string | null) => void;
   updateWidgetPosition: (payload: { id: string; x: number; y: number }) => void;
@@ -78,7 +89,6 @@ type EditorState = {
   applyTemplate: (template: TemplateType) => void;
 };
 
-// Default empty layout config (สำหรับตอนเริ่มสร้าง)
 const defaultLayoutConfig = {
     name: 'Untitled Layout',
     width: 1920,
@@ -89,7 +99,8 @@ const defaultLayoutConfig = {
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   currentView: 'dashboard',
-  savedLayouts: [], // เริ่มต้นว่างเปล่า รอ fetch
+  savedLayouts: [],
+  savedLayoutSelected: [],
   
   layout: null,
   selectedWidgetId: null,
@@ -108,20 +119,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     translation: 'EN',
   },
 
-  // [NEW] Actions for User Info
+  // [NEW] Initialize Pagination
+  pagination: {
+    page: 1,
+    totalPages: 1,
+    totalItems: 0
+  },
+
   setUserInfo: (info) => {
-      console.log("🔒 Store: Updating User Info", info); // Debug
+      console.log("🔒 Store: Updating User Info", info);
       set((state) => ({
         userInfo: { ...state.userInfo, ...info }
       }));
   },
 
   logout: () => {
-    // ลบ Token จาก Storage ด้วย
     if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
     }
-    // Reset State
     set((state) => ({
         userInfo: {
             token: null,
@@ -132,29 +147,62 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             account_username: null,
             translation: 'EN',
         },
-        // อาจจะ reset view ด้วยถ้าต้องการ
         currentView: 'dashboard',
         layout: null
     }));
   },
+  
+  isLayoutsLoading: true,
 
-  // [NEW] Fetch Layouts from Backend
-  fetchLayouts: async () => {
-      const layouts = await getLayouts();
-      set({ savedLayouts: layouts });
+  // [MODIFIED] Fetch Layouts with Pagination
+  fetchLayouts: async (page = 1) => {
+      set({ isLayoutsLoading: true });
+      try {
+          // เรียก API แบบใหม่ที่ส่ง page ไปด้วย
+/*************  ✨ Windsurf Command ⭐  *************/
+  /**
+   * Create a new layout based on the given template and name.
+   * 
+   * 1. Prepare basic layout data (using defaultLayoutConfig).
+   * 2. Apply template (client-side logic to generate widgets).
+   * 3. Send to Backend and update state accordingly.
+   * 
+   * @param {string} name - The name of the new layout.
+   * @param {TemplateType} template - The template to use for generating widgets.
+   */
+/*******  97850fe2-8aa8-4c39-aa15-34e813a46393  *******/          // ซึ่ง API getLayouts ใน src/apis/index.ts ควร return { data, pagination }
+          const response: any = await getLayouts(page);
+          
+          // ตรวจสอบโครงสร้างข้อมูลที่ได้จาก API
+          // กรณี API ส่งมาเป็น { data: [...], pagination: {...} }
+          const layouts = response.data || []; 
+          const paginationData = response.pagination || { page: 1, totalPages: 1, totalItems: 0 };
+
+          set({ 
+            savedLayouts: layouts,
+            pagination: paginationData
+          });
+
+      } catch (error) {
+          console.error("Fetch Error:", error);
+          set({ savedLayouts: [] });
+      } finally {
+          set({ isLayoutsLoading: false });
+      }
+  },
+  fetchSelectedLayout: async () => {
+      const layouts = await getLayoutSelect();
+      set({ savedLayoutSelected: layouts });
   },
 
   createLayout: async (name, template) => {
-    // 1. Prepare basic layout data
     const newLayoutBase: any = {
         ...defaultLayoutConfig,
         name: name || 'Untitled Layout',
     };
     
-    // 2. Apply template (client-side logic to generate widgets)
     const layoutWithWidgets = createLayoutFromTemplate(newLayoutBase, template);
     
-    // 3. Send to Backend
     try {
         const createdLayout = await apiCreateLayout(layoutWithWidgets);
         
@@ -167,12 +215,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }));
     } catch (error) {
         console.error("Failed to create layout", error);
-        // Handle error (show toast etc.)
     }
   },
 
  editLayout: async (id) => {
-    set({ isWidgetLoading: true }); // แสดง Loading (ถ้ามี UI รองรับ)
+    set({ isWidgetLoading: true });
     try {
         const layoutData = await apiGetLayout(id);
         
@@ -197,27 +244,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   deleteLayout: async (id) => {
     try {
         await apiDeleteLayout(id);
-        set(state => ({
-            savedLayouts: state.savedLayouts.filter(l => l.id !== id)
-        }));
+        // หลังจากลบ ให้ดึงข้อมูลใหม่หน้าเดิม เพื่ออัปเดต List และ Pagination
+        const currentPage = get().pagination.page;
+        await get().fetchLayouts(currentPage);
     } catch (error) {
         console.error("Failed to delete layout", error);
     }
   },
-  
 
   saveCurrentLayout: async () => {
     const currentLayout = get().layout;
     if (!currentLayout) return;
     
     try {
-        // Update timestamp
         const updatedLayout = { ...currentLayout, updatedAt: new Date().toISOString() };
-        
-        // Call API
         await apiSaveLayout(updatedLayout);
         
-        // Update local list
         set(state => ({
             layout: updatedLayout,
             savedLayouts: state.savedLayouts.map(l => 
@@ -234,11 +276,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   backToDashboard: () => {
-      get().fetchLayouts(); // Refresh ข้อมูลเมื่อกลับมา
+      // เมื่อกลับมาหน้า Dashboard ให้โหลดหน้า 1 ใหม่เสมอ หรือจะใช้หน้าล่าสุดก็ได้
+      get().fetchLayouts(1); 
       set({ currentView: 'dashboard', layout: null, hasInitialized: false });
   },
-
-  // ... (ส่วน Editor Actions อื่นๆ เหมือนเดิม แต่ใช้ generateTempId สำหรับ widget ใหม่) ...
 
   addNewWidget: async (type) => {
     set({ isWidgetLoading: true });
@@ -246,33 +287,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const properties = await getWidgetDefaults(type);
       const state = get();
       
-      // [NEW LOGIC] หาว่ามี Widget ไหนที่ "ถูกเลือกอยู่" (Selected) หรือไม่?
-      // ถ้ามีการเลือกช่องอยู่ ให้ "แทนที่ (Replace)" Widget นั้นไปเลย
-      // นี่คือวิธีที่ Figma หรือเครื่องมือแต่งเว็บทำกัน คือเลือกกล่อง -> กดเปลี่ยน Content
-      
       if (state.selectedWidgetId) {
          const selectedWidget = state.layout?.widgets.find(w => w.id === state.selectedWidgetId);
          if (selectedWidget) {
-             // อัปเดต Widget เดิมให้กลายเป็น Type ใหม่ (รักษาตำแหน่งและขนาดเดิมไว้)
              await state.changeWidgetType(state.selectedWidgetId, type);
              set({ isWidgetLoading: false });
-             return; // จบการทำงาน ไม่ต้องสร้างใหม่
+             return;
          }
       }
 
-      // --- ถ้าไม่ได้เลือกช่องไหนไว้ ก็สร้างใหม่ตรงกลาง (Logic เดิม) ---
-      
       const newWidget: Widget = {
         id: generateTempId(),
         type,
-        x: 100, y: 100, // Default Position
+        x: 100, y: 100,
         width: type === 'webview' ? 600 : 400,
         height: type === 'ticker' ? 100 : 200,
         zIndex: (state.layout?.widgets.length || 0) + 1,
         properties: { ...properties },
       };
 
-      // ... (Playlist setup logic) ...
       if (type === 'image' || type === 'video') {
         newWidget.properties.fitMode = 'fill';
         if (!newWidget.properties.playlist) {
@@ -301,7 +334,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  // ... (Copy ฟังก์ชันอื่นๆ loadLayout, selectWidget, etc. จากไฟล์เดิมมาใส่ต่อได้เลย) ...
   loadLayout: (layout) => set({ layout, hasInitialized: true }),
   selectWidget: (widgetId) => set({ selectedWidgetId: widgetId }),
   updateWidgetPosition: (payload) => set(state => {
