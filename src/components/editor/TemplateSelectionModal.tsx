@@ -28,10 +28,10 @@ interface TemplateSelectionModalProps {
 
 const templates = [
   { id: 'blank', name: 'Blank Canvas', icon: <Square size={32} /> },
-  { id: 'split-horizontal', name: '2 Columns', icon: <RectangleVertical size={32} /> },
-  { id: 'split-vertical', name: '2 Rows', icon: <RectangleHorizontal size={32} /> },
-  { id: 'three-cols', name: '3 Columns', icon: <Columns size={32} /> }, // ใหม่
-  { id: 'three-rows', name: '3 Rows', icon: <Rows size={32} /> },       // ใหม่
+  { id: 'split-horizontal', name: '2 Columns', icon: <Columns size={32} /> },
+  { id: 'split-vertical', name: '2 Rows', icon: <Rows size={32} /> },
+  { id: 'three-cols', name: '3 Columns', icon: <RectangleVertical  size={32} /> }, // ใหม่
+  { id: 'three-rows', name: '3 Rows', icon: <RectangleHorizontal size={32} /> },       // ใหม่
   { id: 'sidebar-left', name: 'Sidebar Left', icon: <PanelLeft size={32} /> },
   { id: 'header-sidebar', name: 'Header & Side', icon: <PanelTop size={32} /> }, // ใหม่
   { id: 'quad-grid', name: '4 Grid', icon: <LayoutGrid size={32} /> },
