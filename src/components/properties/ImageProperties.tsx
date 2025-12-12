@@ -158,7 +158,7 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Fit Mode</Label>
+        {/* <Label>Fit Mode</Label>
          <Select
           value={properties.fitMode || 'fill'}
           onValueChange={(value: 'cover' | 'contain' | 'fill') => updateProperties({ fitMode: value })}
@@ -171,7 +171,7 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
             <SelectItem value="cover">Cover (No Distortion)</SelectItem>
             <SelectItem value="contain">Contain (Fit Inside)</SelectItem>
           </SelectContent>
-        </Select>
+        </Select> */}
       </div>
 
       <div className="flex justify-between items-center">
