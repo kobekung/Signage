@@ -36,6 +36,7 @@ import {
 import { TemplateType } from "@/lib/types";
 import LayoutThumbnail from "./LayoutThumbnail";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast"; // [NEW] 1. Import Toast
 
 export default function Dashboard() {
   const {
@@ -56,6 +57,7 @@ export default function Dashboard() {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | null>(null);
   const [newLayoutName, setNewLayoutName] = useState("");
   const MASS_APP_URL = process.env.NEXT_PUBLIC_MASS_APP_URL || "https://mass.bussing.app";
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchLayouts(1); // Fetch หน้าแรกเสมอเมื่อเข้ามาใหม่
@@ -71,10 +73,27 @@ export default function Dashboard() {
     setIsNameDialogOpen(true);
   };
 
-  const handleCreateConfirm = () => {
+  const handleCreateConfirm = async () => {
     if (selectedTemplate) {
-      createLayout(newLayoutName, selectedTemplate);
-      setIsNameDialogOpen(false);
+        try {
+            await createLayout(newLayoutName, selectedTemplate);
+            
+            // ถ้าสำเร็จ ให้ปิด Dialog และแจ้งเตือน
+            setIsNameDialogOpen(false);
+            toast({
+                title: "Success",
+                description: "Layout created successfully.",
+                variant: "default",
+            });
+
+        } catch (error: any) {
+            // ถ้าพัง (เช่น ชื่อซ้ำ) ให้แสดง Toast และ **ไม่ปิด Dialog**
+            toast({
+                title: "Creation Failed",
+                description: error.message || "Could not create layout. Name might be duplicate.",
+                variant: "destructive", // สีแดง
+            });
+        }
     }
   };
 

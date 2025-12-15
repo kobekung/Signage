@@ -22,7 +22,8 @@ export default function EditorLayout() {
     fitToScreen,
     deleteWidget,
     selectedWidgetId,
-    hasInitialized
+    hasInitialized,
+    togglePreviewMode // [1] ดึง togglePreviewMode มาใช้
   } = useEditorStore(state => ({
     isPreviewMode: state.isPreviewMode,
     layout: state.layout,
@@ -32,7 +33,8 @@ export default function EditorLayout() {
     fitToScreen: state.fitToScreen,
     deleteWidget: state.deleteWidget,
     selectedWidgetId: state.selectedWidgetId,
-    hasInitialized: state.hasInitialized
+    hasInitialized: state.hasInitialized,
+    togglePreviewMode: state.togglePreviewMode
   }));
 
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
@@ -41,24 +43,34 @@ export default function EditorLayout() {
   
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
-  // [NEW] เก็บตำแหน่งนิ้วล่าสุดสำหรับ Touch Pan
   const lastTouchPos = useRef<{x: number, y: number} | null>(null);
 
-  // [NEW] Detect Mobile & Auto-close Right Sidebar
+  // Detect Mobile & Auto-close Right Sidebar (Initial Load)
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setIsRightSidebarOpen(false);
     }
   }, []);
 
-  // Modal Logic
+  // [2] Auto-open Right Sidebar when a widget is selected (Mobile Friendly)
+  useEffect(() => {
+    if (selectedWidgetId) {
+      setIsRightSidebarOpen(true);
+      
+      // ถ้าเป็น Mobile ให้ปิด Left Sidebar เพื่อไม่ให้บังกัน
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+          setIsLeftSidebarOpen(false);
+      }
+    }
+  }, [selectedWidgetId]);
+
+  // ... (ส่วน Modal Logic และ Resize Logic คงเดิม) ...
   useEffect(() => {
     if (layout && layout.widgets.length === 0 && !hasInitialized) {
       setIsTemplateModalOpen(true);
     }
   }, [layout, hasInitialized]);
   
-  // Initial Fit to Screen
   useEffect(() => {
     const container = canvasContainerRef.current;
     if (!container) return;
@@ -77,7 +89,8 @@ export default function EditorLayout() {
     return () => resizeObserver.unobserve(container);
   }, [layout, fitToScreen]);
 
-  // Delete Key Logic
+  // ... (ส่วน Delete Key, Mouse Handlers, Touch Handlers คงเดิม) ...
+  // (ขอละไว้เพื่อความกระชับ ให้ใช้โค้ดเดิมในส่วนนี้)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedWidgetId) {
@@ -95,7 +108,6 @@ export default function EditorLayout() {
     };
   }, [selectedWidgetId, deleteWidget]);
 
-  // --- Mouse Handlers (Desktop) ---
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     if (e.button === 2 || (e.button === 0 && e.nativeEvent.altKey)) {
       e.preventDefault();
@@ -120,10 +132,7 @@ export default function EditorLayout() {
     }
   };
 
-  // --- Touch Handlers (Mobile) ---
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
-    // ถ้าแตะ 1 นิ้วที่พื้นหลัง (ไม่ใช่บน Widget) ให้เริ่ม Pan
-    // (หมายเหตุ: Rnd Widget จะ StopPropagation เอง ถ้าแตะโดน Widget)
     if (e.touches.length === 1) {
         isPanning.current = true;
         lastTouchPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -132,9 +141,6 @@ export default function EditorLayout() {
 
   const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
     if (isPanning.current && lastTouchPos.current && e.touches.length === 1) {
-        // Prevent Scrolling while panning canvas
-        // e.preventDefault(); // อาจต้องระวังถ้าใช้ passive listener
-        
         const touch = e.touches[0];
         const dx = touch.clientX - lastTouchPos.current.x;
         const dy = touch.clientY - lastTouchPos.current.y;
@@ -184,17 +190,17 @@ export default function EditorLayout() {
   if (!layout) return null; 
 
   if (isPreviewMode) {
-    return <Player layout={layout} />;
+    // [3] ส่ง togglePreviewMode ไปให้ Player เป็น prop onExit
+    return <Player layout={layout} onExit={togglePreviewMode} />;
   }
 
   return (
     <TooltipProvider>
       <div className="flex h-screen w-screen bg-background font-body overflow-hidden relative">
         
-        {/* [MODIFIED] Left Sidebar: Absolute on Mobile, Static on Desktop */}
+        {/* Left Sidebar */}
         {isLeftSidebarOpen && (
             <>
-                {/* Overlay Backdrop for Mobile */}
                 <div 
                     className="fixed inset-0 bg-black/50 z-40 md:hidden" 
                     onClick={() => setIsLeftSidebarOpen(false)}
@@ -211,18 +217,16 @@ export default function EditorLayout() {
             
             <div 
               ref={canvasContainerRef}
-              className="flex-1 relative bg-muted/40 overflow-hidden cursor-grab touch-none" // [Added] touch-none
+              className="flex-1 relative bg-muted/40 overflow-hidden cursor-grab touch-none"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              // [Added] Touch Events
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onContextMenu={(e) => e.preventDefault()}
             >
-              {/* Left Toggle Button */}
               <div className="absolute top-2 left-2 z-10">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -243,7 +247,6 @@ export default function EditorLayout() {
 
               <Canvas />
               
-               {/* Right Toggle Button */}
                <div className="absolute top-2 right-2 z-10">
                  <Tooltip>
                   <TooltipTrigger asChild>
@@ -264,10 +267,9 @@ export default function EditorLayout() {
               <ZoomControls />
             </div>
 
-            {/* [MODIFIED] Right Sidebar: Absolute on Mobile, Static on Desktop */}
+            {/* Right Sidebar */}
             {isRightSidebarOpen && (
                 <>
-                    {/* Overlay Backdrop for Mobile (Optional, currently removed to interact with canvas if needed, but added for focus) */}
                      <div 
                         className="fixed inset-0 bg-black/50 z-40 md:hidden" 
                         onClick={() => setIsRightSidebarOpen(false)}

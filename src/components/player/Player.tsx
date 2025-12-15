@@ -3,17 +3,18 @@
 import React, { useEffect, useState } from 'react';
 import { Layout, Widget } from '@/lib/types';
 import WidgetRenderer from '../widgets/WidgetRenderer';
+import { X } from 'lucide-react'; // [4] Import Icon
 
 interface PlayerProps {
   layout: Layout;
+  onExit?: () => void; // [5] รับ prop เพื่อออกจาก Preview
 }
 
 const BUS_API_URL = 'https://public.bussing.app/bus-info/busround-active?busno=10&com_id=1';
 
-export default function Player({ layout }: PlayerProps) {
-  // เก็บ Widget ID และ Item Index ที่ถูก Trigger
+export default function Player({ layout, onExit }: PlayerProps) {
   const [activeTrigger, setActiveTrigger] = useState<{ 
-      widget: Widget; // Widget จำลองที่มี Playlist แค่ตัวเดียว (ตัวที่ถูก Trigger)
+      widget: Widget;
       isFullscreen: boolean;
   } | null>(null);
 
@@ -33,7 +34,6 @@ export default function Player({ layout }: PlayerProps) {
                 console.log("Bus reached location:", currentLocationId);
                 setLastProcessedLocation(currentLocationId);
 
-                // [NEW LOGIC] วนหาทุก Widget -> ทุก Playlist Item
                 let foundMatch = false;
 
                 for (const widget of layout.widgets) {
@@ -47,13 +47,11 @@ export default function Player({ layout }: PlayerProps) {
                             console.log("Found Match Item:", matchItem.id);
                             foundMatch = true;
 
-                            // สร้าง Widget จำลอง เพื่อเอาไปเล่นใน Overlay
-                            // โดยให้ Playlist มีแค่ Item นี้ Item เดียว
                             const triggerWidget: Widget = {
                                 ...widget,
                                 properties: {
                                     ...widget.properties,
-                                    playlist: [matchItem] // ใส่แค่ตัวเดียว
+                                    playlist: [matchItem]
                                 }
                             };
 
@@ -62,7 +60,7 @@ export default function Player({ layout }: PlayerProps) {
                                 isFullscreen: matchItem.fullscreen === true
                             });
                             
-                            break; // เจอแล้วหยุดหา (หรือจะให้เล่นซ้อนกันก็ได้แต่ซับซ้อน)
+                            break;
                         }
                     }
                 }
@@ -88,8 +86,20 @@ export default function Player({ layout }: PlayerProps) {
   };
 
   return (
-    <div className="relative w-screen h-screen bg-black overflow-hidden">
+    // [6] เพิ่ม group class เพื่อใช้กับ hover effect
+    <div className="relative w-screen h-screen bg-black overflow-hidden group">
       
+      {/* [7] ปุ่ม Exit Preview */}
+      {onExit && (
+        <button
+          onClick={onExit}
+          className="absolute top-4 right-4 z-[9999] p-2 bg-black/30 hover:bg-red-600 text-white rounded-full backdrop-blur-md transition-all duration-300 opacity-50 hover:opacity-100"
+          title="Exit Preview"
+        >
+          <X size={24} />
+        </button>
+      )}
+
       {/* Normal Layer */}
       <div className="absolute inset-0 w-full h-full">
          <div 
@@ -121,10 +131,9 @@ export default function Player({ layout }: PlayerProps) {
 
       {/* Trigger Overlay Layer */}
       {activeTrigger && (
-          <div className="absolute inset-0 z-[9999] flex items-center justify-center bg-black/80">
+          <div className="absolute inset-0 z-[9990] flex items-center justify-center bg-black/80">
               
               {activeTrigger.isFullscreen ? (
-                  // Fullscreen Mode
                   <div className="w-full h-full">
                       <WidgetRenderer 
                           widget={activeTrigger.widget} 
@@ -133,15 +142,11 @@ export default function Player({ layout }: PlayerProps) {
                       />
                   </div>
               ) : (
-                  // Non-Fullscreen Mode (Modal Pop-up)
                   <div 
                     className="relative bg-black border-2 border-white shadow-2xl"
                     style={{
                         width: '80%',
                         height: '80%',
-                        // หรือจะใช้ขนาดจริงของ Widget ก็ได้
-                        // maxWidth: activeTrigger.widget.width,
-                        // maxHeight: activeTrigger.widget.height
                     }}
                   >
                       <WidgetRenderer 
@@ -149,7 +154,6 @@ export default function Player({ layout }: PlayerProps) {
                           onFinished={handleTriggerFinished} 
                           isTriggerMode={true}
                       />
-                      {/* ปุ่มปิดเฉพาะแบบ Modal */}
                       <button 
                         onClick={handleTriggerFinished}
                         className="absolute -top-3 -right-3 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-red-700"

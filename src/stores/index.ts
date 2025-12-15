@@ -196,6 +196,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   createLayout: async (name, template) => {
+    // ... (logic เดิม)
     const newLayoutBase: any = {
         ...defaultLayoutConfig,
         name: name || 'Untitled Layout',
@@ -215,6 +216,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }));
     } catch (error) {
         console.error("Failed to create layout", error);
+        throw error; // [FIX] เพิ่มบรรทัดนี้ เพื่อส่ง error กลับไปให้ Dashboard รู้ตัว
     }
   },
 
