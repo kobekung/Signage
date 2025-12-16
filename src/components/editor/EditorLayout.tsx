@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ZoomControls from './ZoomControls';
 import TemplateSelectionModal from './TemplateSelectionModal';
+import { Layout, TemplateType } from '@/lib/types'; // [1] Import Types
 
 export default function EditorLayout() {
   const { 
@@ -23,7 +24,9 @@ export default function EditorLayout() {
     deleteWidget,
     selectedWidgetId,
     hasInitialized,
-    togglePreviewMode // [1] ดึง togglePreviewMode มาใช้
+    togglePreviewMode,
+    savedLayouts, // [2] ดึง savedLayouts มาใช้
+    fetchLayouts  // [2] ดึง fetchLayouts มาใช้ (เผื่อต้องโหลดข้อมูล)
   } = useEditorStore(state => ({
     isPreviewMode: state.isPreviewMode,
     layout: state.layout,
@@ -34,7 +37,9 @@ export default function EditorLayout() {
     deleteWidget: state.deleteWidget,
     selectedWidgetId: state.selectedWidgetId,
     hasInitialized: state.hasInitialized,
-    togglePreviewMode: state.togglePreviewMode
+    togglePreviewMode: state.togglePreviewMode,
+    savedLayouts: state.savedLayouts, 
+    fetchLayouts: state.fetchLayouts
   }));
 
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
@@ -50,21 +55,23 @@ export default function EditorLayout() {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setIsRightSidebarOpen(false);
     }
+    
+    // [3] โหลด Saved Layouts ถ้ายังไม่มี (เพื่อให้ Modal มีข้อมูลแสดง)
+    if (savedLayouts.length === 0) {
+        fetchLayouts(1);
+    }
   }, []);
 
-  // [2] Auto-open Right Sidebar when a widget is selected (Mobile Friendly)
+  // Auto-open Right Sidebar when a widget is selected (Mobile Friendly)
   useEffect(() => {
     if (selectedWidgetId) {
       setIsRightSidebarOpen(true);
-      
-      // ถ้าเป็น Mobile ให้ปิด Left Sidebar เพื่อไม่ให้บังกัน
       if (typeof window !== 'undefined' && window.innerWidth < 768) {
           setIsLeftSidebarOpen(false);
       }
     }
   }, [selectedWidgetId]);
 
-  // ... (ส่วน Modal Logic และ Resize Logic คงเดิม) ...
   useEffect(() => {
     if (layout && layout.widgets.length === 0 && !hasInitialized) {
       setIsTemplateModalOpen(true);
@@ -89,8 +96,6 @@ export default function EditorLayout() {
     return () => resizeObserver.unobserve(container);
   }, [layout, fitToScreen]);
 
-  // ... (ส่วน Delete Key, Mouse Handlers, Touch Handlers คงเดิม) ...
-  // (ขอละไว้เพื่อความกระชับ ให้ใช้โค้ดเดิมในส่วนนี้)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedWidgetId) {
@@ -181,16 +186,23 @@ export default function EditorLayout() {
     };
   }, [handleWheel]);
 
-
-  const handleTemplateSelect = (template: any) => {
-    applyTemplate(template);
+  // [4] แก้ไข handleTemplateSelect ให้รองรับทั้ง Template และ Layout
+  const handleTemplateSelect = (selection: TemplateType | Layout) => {
+    if (typeof selection === 'string') {
+        // กรณีเลือก Template ปกติ
+        applyTemplate(selection as TemplateType);
+    } else {
+        // กรณีเลือก Copy Layout (ตอนนี้ใน Editor อาจจะยังไม่รองรับการ Replace Widgets 
+        // แต่ใส่กันไว้ไม่ให้แอป Crash หรืออาจจะแจ้งเตือน)
+        console.log("Copy layout feature inside editor is under construction:", selection);
+        // ถ้าต้องการให้ Copy ได้จริง ต้องเพิ่ม Action ใน Store เช่น replaceWidgets(selection.widgets)
+    }
     setIsTemplateModalOpen(false);
   };
 
   if (!layout) return null; 
 
   if (isPreviewMode) {
-    // [3] ส่ง togglePreviewMode ไปให้ Player เป็น prop onExit
     return <Player layout={layout} onExit={togglePreviewMode} />;
   }
 
@@ -270,7 +282,7 @@ export default function EditorLayout() {
             {/* Right Sidebar */}
             {isRightSidebarOpen && (
                 <>
-                     <div 
+                      <div 
                         className="fixed inset-0 bg-black/50 z-40 md:hidden" 
                         onClick={() => setIsRightSidebarOpen(false)}
                     />
@@ -282,10 +294,13 @@ export default function EditorLayout() {
 
           </main>
         </div>
+        
+        {/* [5] ส่ง existingLayouts เข้าไป */}
         <TemplateSelectionModal
           isOpen={isTemplateModalOpen}
           onSelect={handleTemplateSelect}
           onClose={() => setIsTemplateModalOpen(false)}
+          existingLayouts={savedLayouts} 
         />
       </div>
     </TooltipProvider>

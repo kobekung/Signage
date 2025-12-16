@@ -18,7 +18,7 @@ import {
   LogOut,
   AlertTriangle,
   ChevronLeft,
-  ChevronRight // Import icon สำหรับ pagination
+  ChevronRight
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useEffect } from "react";
@@ -33,19 +33,20 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { TemplateType } from "@/lib/types";
+import { TemplateType, Layout } from "@/lib/types"; // Import Layout ให้ถูกต้อง
 import LayoutThumbnail from "./LayoutThumbnail";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast"; // [NEW] 1. Import Toast
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const {
     savedLayouts,
     isLayoutsLoading,
-    pagination, // [NEW] ดึง pagination state จาก store
+    pagination,
     deleteLayout,
     editLayout,
     createLayout,
+    duplicateLayout,
     fetchLayouts,
     navigateToBuses,
     logout,
@@ -54,31 +55,52 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [layoutToDelete, setLayoutToDelete] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType | null>(null);
+  
+  // เก็บสิ่งที่เลือก (Template หรือ Layout ที่จะ Copy)
+  const [selectedSource, setSelectedSource] = useState<TemplateType | Layout | null>(null);
+  
   const [newLayoutName, setNewLayoutName] = useState("");
   const MASS_APP_URL = process.env.NEXT_PUBLIC_MASS_APP_URL || "https://mass.bussing.app";
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchLayouts(1); // Fetch หน้าแรกเสมอเมื่อเข้ามาใหม่
+    fetchLayouts(1);
   }, []);
 
-  const handleTemplateSelect = (template: TemplateType) => {
-    setSelectedTemplate(template);
-    setIsModalOpen(false);
-    const templateName = String(template);
-    setNewLayoutName(
-      `${templateName.charAt(0).toUpperCase() + templateName.slice(1)} Layout`
-    );
-    setIsNameDialogOpen(true);
+  // [FIXED] เพิ่ม Timeout เพื่อแก้ปัญหา Dialog ชนกัน
+  const handleSourceSelect = (source: TemplateType | Layout) => {
+    setSelectedSource(source);
+    setIsModalOpen(false); // 1. ปิด Modal แรกทันที
+    
+    let defaultName = "";
+    if (typeof source === 'string') {
+        const templateName = String(source);
+        defaultName = `${templateName.charAt(0).toUpperCase() + templateName.slice(1)} Layout`;
+    } else {
+        // [Safety Check] เผื่อ source.name เป็น null
+        defaultName = `${source.name || 'Untitled'} (Copy)`;
+    }
+    
+    setNewLayoutName(defaultName);
+    
+    // 2. [Critical Fix] ใช้ setTimeout เพื่อรอให้ Modal แรกปิดสนิทก่อนเปิด Modal สอง
+    // ช่วยป้องกัน Dialog Freeze และ Application Error จากการชนกันของ Focus Trap
+    setTimeout(() => {
+        setIsNameDialogOpen(true);
+    }, 200); // เพิ่มเวลาเป็น 200ms เพื่อความชัวร์
   };
 
   const handleCreateConfirm = async () => {
-    if (selectedTemplate) {
+    if (selectedSource) {
         try {
-            await createLayout(newLayoutName, selectedTemplate);
+            if (typeof selectedSource === 'string') {
+                // สร้างจาก Template
+                await createLayout(newLayoutName, selectedSource as TemplateType);
+            } else {
+                // สร้างจากการ Copy
+                await duplicateLayout(newLayoutName, selectedSource as Layout);
+            }
             
-            // ถ้าสำเร็จ ให้ปิด Dialog และแจ้งเตือน
             setIsNameDialogOpen(false);
             toast({
                 title: "Success",
@@ -87,11 +109,10 @@ export default function Dashboard() {
             });
 
         } catch (error: any) {
-            // ถ้าพัง (เช่น ชื่อซ้ำ) ให้แสดง Toast และ **ไม่ปิด Dialog**
             toast({
                 title: "Creation Failed",
-                description: error.message || "Could not create layout. Name might be duplicate.",
-                variant: "destructive", // สีแดง
+                description: error.message || "Could not create layout.",
+                variant: "destructive",
             });
         }
     }
@@ -100,7 +121,6 @@ export default function Dashboard() {
   const handleConfirmDelete = async () => {
     if (layoutToDelete) {
       await deleteLayout(layoutToDelete);
-      // ไม่ต้อง fetchLayouts() ตรงนี้เพราะ deleteLayout ใน store ทำให้อยู่แล้ว
       setLayoutToDelete(null);
     }
   };
@@ -113,7 +133,6 @@ export default function Dashboard() {
     }
   };
   
-  // [NEW] ฟังก์ชันเปลี่ยนหน้า
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
         fetchLayouts(newPage);
@@ -254,7 +273,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* [NEW] Pagination Controls */}
+        {/* Pagination Controls */}
         {!isLayoutsLoading && savedLayouts.length > 0 && (
             <div className="flex items-center justify-center gap-4 mt-8 pb-8">
                 <Button
@@ -284,8 +303,9 @@ export default function Dashboard() {
 
       <TemplateSelectionModal
         isOpen={isModalOpen}
-        onSelect={handleTemplateSelect}
+        onSelect={handleSourceSelect}
         onClose={() => setIsModalOpen(false)}
+        existingLayouts={savedLayouts} 
       />
 
       <Dialog open={isNameDialogOpen} onOpenChange={setIsNameDialogOpen}>

@@ -48,7 +48,7 @@ type EditorState = {
   viewState: ViewState;
   userInfo: UserInfo;
   
-  // [NEW] Pagination State
+  // Pagination State
   pagination: {
     page: number;
     totalPages: number;
@@ -59,9 +59,10 @@ type EditorState = {
   logout: () => void;
   
   // Actions
-  fetchLayouts: (page?: number) => Promise<void>; // [MODIFIED] รับ page ได้
-  fetchSelectedLayout: () => Promise<void>; // [NEW]
+  fetchLayouts: (page?: number) => Promise<void>;
+  fetchSelectedLayout: () => Promise<void>;
   createLayout: (name: string, template: TemplateType) => Promise<void>;
+  duplicateLayout: (name: string, sourceLayout: Layout) => Promise<void>; // [NEW]
   editLayout: (id: string) => void;
   deleteLayout: (id: string) => Promise<void>;
   saveCurrentLayout: () => Promise<void>;
@@ -119,7 +120,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     translation: 'EN',
   },
 
-  // [NEW] Initialize Pagination
   pagination: {
     page: 1,
     totalPages: 1,
@@ -154,27 +154,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   
   isLayoutsLoading: true,
 
-  // [MODIFIED] Fetch Layouts with Pagination
   fetchLayouts: async (page = 1) => {
       set({ isLayoutsLoading: true });
       try {
-          // เรียก API แบบใหม่ที่ส่ง page ไปด้วย
-/*************  ✨ Windsurf Command ⭐  *************/
-  /**
-   * Create a new layout based on the given template and name.
-   * 
-   * 1. Prepare basic layout data (using defaultLayoutConfig).
-   * 2. Apply template (client-side logic to generate widgets).
-   * 3. Send to Backend and update state accordingly.
-   * 
-   * @param {string} name - The name of the new layout.
-   * @param {TemplateType} template - The template to use for generating widgets.
-   */
-/*******  97850fe2-8aa8-4c39-aa15-34e813a46393  *******/          // ซึ่ง API getLayouts ใน src/apis/index.ts ควร return { data, pagination }
           const response: any = await getLayouts(page);
           
-          // ตรวจสอบโครงสร้างข้อมูลที่ได้จาก API
-          // กรณี API ส่งมาเป็น { data: [...], pagination: {...} }
           const layouts = response.data || []; 
           const paginationData = response.pagination || { page: 1, totalPages: 1, totalItems: 0 };
 
@@ -190,13 +174,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           set({ isLayoutsLoading: false });
       }
   },
+
   fetchSelectedLayout: async () => {
       const layouts = await getLayoutSelect();
       set({ savedLayoutSelected: layouts });
   },
 
   createLayout: async (name, template) => {
-    // ... (logic เดิม)
     const newLayoutBase: any = {
         ...defaultLayoutConfig,
         name: name || 'Untitled Layout',
@@ -216,8 +200,46 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         }));
     } catch (error) {
         console.error("Failed to create layout", error);
-        throw error; // [FIX] เพิ่มบรรทัดนี้ เพื่อส่ง error กลับไปให้ Dashboard รู้ตัว
+        throw error;
     }
+  },
+
+  // [NEW] ฟังก์ชันสำหรับ Duplicate Layout
+  duplicateLayout: async (name, sourceLayout) => {
+      // 1. สร้าง Widget ใหม่โดย Gen ID ใหม่ทั้งหมด เพื่อไม่ให้กระทบตัวเก่า
+      // และต้องมั่นใจว่า playlist items ก็มี ID ใหม่ด้วย (ถ้าจำเป็น)
+      const newWidgets = sourceLayout.widgets.map(w => ({
+          ...w,
+          id: generateTempId(), // สร้าง ID ใหม่ให้กับ Widget
+          // properties จะถูก copy โดยอัตโนมัติ (ตราบใดที่ไม่ใช่ nested object ที่ซับซ้อนมาก)
+          // หากใน properties มี array/object ควร spread อีกทีเพื่อความชัวร์ (Deep Copy เบื้องต้น)
+          properties: JSON.parse(JSON.stringify(w.properties)) 
+      }));
+
+      // 2. เตรียม Payload
+      const newLayoutPayload: any = {
+          name: name,
+          width: sourceLayout.width,
+          height: sourceLayout.height,
+          backgroundColor: sourceLayout.backgroundColor,
+          widgets: newWidgets
+      };
+
+      try {
+          // 3. ส่งไปสร้างที่ Backend
+          const createdLayout = await apiCreateLayout(newLayoutPayload);
+
+          set(state => ({
+              savedLayouts: [createdLayout, ...state.savedLayouts],
+              layout: createdLayout,
+              currentView: 'editor',
+              hasInitialized: true,
+              viewState: { scale: 1, panX: 0, panY: 0 }
+          }));
+      } catch (error) {
+          console.error("Failed to duplicate layout", error);
+          throw error;
+      }
   },
 
  editLayout: async (id) => {
@@ -246,7 +268,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   deleteLayout: async (id) => {
     try {
         await apiDeleteLayout(id);
-        // หลังจากลบ ให้ดึงข้อมูลใหม่หน้าเดิม เพื่ออัปเดต List และ Pagination
+        // หลังจากลบ ให้ดึงข้อมูลใหม่หน้าเดิม
         const currentPage = get().pagination.page;
         await get().fetchLayouts(currentPage);
     } catch (error) {
@@ -278,7 +300,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   backToDashboard: () => {
-      // เมื่อกลับมาหน้า Dashboard ให้โหลดหน้า 1 ใหม่เสมอ หรือจะใช้หน้าล่าสุดก็ได้
       get().fetchLayouts(1); 
       set({ currentView: 'dashboard', layout: null, hasInitialized: false });
   },
