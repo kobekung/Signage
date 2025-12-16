@@ -5,7 +5,7 @@ import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Trash2, Plus, Upload, Loader2, MapPin, Maximize } from 'lucide-react';
+import { Trash2, Plus, Upload, Loader2, MapPin, Maximize, GripVertical } from 'lucide-react';
 import { useDebouncedCallback } from 'use-debounce';
 import { useRef, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +21,25 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// --- DND Kit Imports ---
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
 interface ImagePropertiesProps {
   widget: Widget;
 }
@@ -29,6 +48,122 @@ const BASE_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const CLEAN_BASE_API = BASE_API.replace(/\/$/, ''); 
 const API_UPLOAD_URL = `${CLEAN_BASE_API}/upload`;
 
+// --- Sortable Item Component (ตัวจัดการแต่ละรายการให้ลากได้) ---
+interface SortableItemProps {
+  item: PlaylistItem;
+  index: number;
+  onDelete: (id: string) => void;
+  onChange: (id: string, field: keyof PlaylistItem, value: any) => void;
+}
+
+function SortablePlaylistItem({ item, index, onDelete, onChange }: SortableItemProps) {
+  // Hook ของ dnd-kit สำหรับทำให้ element นี้ลากได้
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 1,
+    opacity: isDragging ? 0.5 : 1,
+    position: 'relative' as const,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`p-3 border rounded-lg space-y-3 ${isDragging ? 'bg-blue-50 border-blue-200' : 'bg-muted/20'}`}
+    >
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2 overflow-hidden">
+          {/* ปุ่ม Grip สำหรับจับลาก */}
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab hover:text-blue-600 text-muted-foreground flex-shrink-0 touch-none p-1"
+          >
+            <GripVertical size={18} />
+          </div>
+
+          <Label className="font-semibold truncate pr-2">
+            Item {index + 1}: {item.type}
+          </Label>
+        </div>
+        
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-7 w-7 flex-shrink-0 hover:bg-red-100 hover:text-red-600" 
+          onClick={() => onDelete(item.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-2 pl-6"> {/* เพิ่ม padding ซ้ายให้ตรงกับแนว grip */}
+        <div className="col-span-2 space-y-1">
+          <Label htmlFor={`url-${item.id}`} className="text-xs">URL</Label>
+          <Input
+            id={`url-${item.id}`}
+            value={item.url}
+            readOnly
+            className="h-8 bg-white"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`duration-${item.id}`} className="text-xs">Sec</Label>
+          <Input
+            id={`duration-${item.id}`}
+            type="number"
+            value={item.duration}
+            onChange={(e) => onChange(item.id, 'duration', Number(e.target.value))}
+            className="h-8"
+          />
+        </div>
+      </div>
+
+      {/* Trigger Settings */}
+      <div className="pt-2 border-t border-muted-foreground/20 pl-6">
+        <div className="flex items-center gap-2 mb-2 text-xs text-blue-600 font-semibold">
+          <MapPin size={12} />
+          <span>Trigger Settings</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-[10px]">Location ID</Label>
+            <Input 
+              className="h-7 text-xs" 
+              placeholder="e.g. 100"
+              value={item.locationId || ''}
+              onChange={(e) => onChange(item.id, 'locationId', e.target.value)}
+            />
+          </div>
+          <div className="flex items-end justify-end pb-1">
+             <div className="flex items-center gap-2">
+              <Label className="text-[10px] flex items-center gap-1">
+                <Maximize size={10} /> Fullscreen
+              </Label>
+              <Switch 
+                className="scale-75"
+                checked={item.fullscreen || false}
+                onCheckedChange={(val) => onChange(item.id, 'fullscreen', val)}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Main Component ---
 export default function ImageProperties({ widget }: ImagePropertiesProps) {
   const updateWidgetProperties = useEditorStore(state => state.updateWidgetProperties);
   
@@ -37,9 +172,19 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  
-  // เพิ่ม State สำหรับเก็บ ID ตัวที่จะลบ (ใช้คุม Dialog)
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
+  // ตั้งค่า Sensor สำหรับรับ input การลาก (Mouse/Touch)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+        activationConstraint: {
+            distance: 5, // ต้องลากเกิน 5px ถึงจะเริ่มทำงาน (ป้องกันการคลิกผิด)
+        }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const debouncedUpdate = useDebouncedCallback((newProps: Partial<WidgetProperties>) => {
     updateWidgetProperties({
@@ -57,6 +202,21 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
     updateProperties({ playlist: newPlaylist });
   };
 
+  // ฟังก์ชันจัดการเมื่อลากเสร็จ (สลับตำแหน่งใน Array)
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = playlist.findIndex((item) => item.id === active.id);
+      const newIndex = playlist.findIndex((item) => item.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+          const newPlaylist = arrayMove(playlist, oldIndex, newIndex);
+          updatePlaylist(newPlaylist);
+      }
+    }
+  };
+
   const handleItemChange = (itemId: string, field: keyof PlaylistItem, value: any) => {
     const newPlaylist = playlist.map(item => 
       item.id === itemId ? { ...item, [field]: value } : item
@@ -65,7 +225,6 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
   };
   
   const handleAddItemByUrl = () => {
-    // สร้าง ID แบบสุ่มป้องกัน Key ซ้ำ ซึ่งเป็นสาเหตุหนึ่งของ Error
     const newItem: PlaylistItem = {
       id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       url: 'https://picsum.photos/400/300',
@@ -75,13 +234,11 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
     updatePlaylist([...playlist, newItem]);
   };
 
-  // ฟังก์ชันลบอย่างปลอดภัย (Safe Delete)
   const confirmDelete = () => {
     if (itemToDelete) {
-        // ใช้การ filter แทนการ splice เพื่อความปลอดภัยของ React State
         const newPlaylist = playlist.filter(item => item.id !== itemToDelete);
         updatePlaylist(newPlaylist);
-        setItemToDelete(null); // ปิด Dialog และเคลียร์ค่า
+        setItemToDelete(null); 
     }
   };
 
@@ -157,8 +314,8 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        {/* <Label>Fit Mode</Label>
+      {/* <div className="space-y-2">
+        <Label>Fit Mode</Label>
          <Select
           value={properties.fitMode || 'fill'}
           onValueChange={(value: 'cover' | 'contain' | 'fill') => updateProperties({ fitMode: value })}
@@ -171,8 +328,8 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
             <SelectItem value="cover">Cover (No Distortion)</SelectItem>
             <SelectItem value="contain">Contain (Fit Inside)</SelectItem>
           </SelectContent>
-        </Select> */}
-      </div>
+        </Select>
+      </div> */}
 
       <div className="flex justify-between items-center">
         <h4 className="font-medium text-md">Playlist Manager</h4>
@@ -194,80 +351,28 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
         </div>
       </div>
 
-      {/* Playlist Items */}
+      {/* Playlist Items with Drag & Drop */}
       <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-        {playlist.map((item, index) => (
-          <div key={item.id} className="p-3 border rounded-lg space-y-3 bg-muted/20">
-            <div className="flex justify-between items-center">
-                <Label className="font-semibold truncate pr-2">
-                    Item {index + 1}: {item.type}
-                </Label>
-                {/* เปลี่ยนปุ่มลบให้เรียก setItemToDelete เพื่อเปิด Dialog */}
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-7 w-7 flex-shrink-0 hover:bg-red-100 hover:text-red-600" 
-                    onClick={() => setItemToDelete(item.id)}
-                >
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2 space-y-1">
-                    <Label htmlFor={`url-${item.id}`} className="text-xs">URL</Label>
-                    <Input
-                        id={`url-${item.id}`}
-                        value={item.url}
-                        readOnly
-                        className="h-8 bg-white"
-                    />
-                </div>
-                <div className="space-y-1">
-                    <Label htmlFor={`duration-${item.id}`} className="text-xs">Sec</Label>
-                    <Input
-                        id={`duration-${item.id}`}
-                        type="number"
-                        value={item.duration}
-                        onChange={(e) => handleItemChange(item.id, 'duration', Number(e.target.value))}
-                        className="h-8"
-                    />
-                </div>
-            </div>
-
-            {/* Trigger Settings */}
-            <div className="pt-2 border-t border-muted-foreground/20">
-                <div className="flex items-center gap-2 mb-2 text-xs text-blue-600 font-semibold">
-                    <MapPin size={12} />
-                    <span>Trigger Settings</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                        <Label className="text-[10px]">Location ID</Label>
-                        <Input 
-                            className="h-7 text-xs" 
-                            placeholder="e.g. 100"
-                            value={item.locationId || ''}
-                            onChange={(e) => handleItemChange(item.id, 'locationId', e.target.value)}
-                        />
-                    </div>
-                    <div className="flex items-end justify-end pb-1">
-                         <div className="flex items-center gap-2">
-                            <Label className="text-[10px] flex items-center gap-1">
-                                <Maximize size={10} /> Fullscreen
-                            </Label>
-                            <Switch 
-                                className="scale-75"
-                                checked={item.fullscreen || false}
-                                onCheckedChange={(val) => handleItemChange(item.id, 'fullscreen', val)}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-          </div>
-        ))}
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext 
+            items={playlist.map(item => item.id)} // ส่ง ID ของ item ทั้งหมด
+            strategy={verticalListSortingStrategy}
+          >
+            {playlist.map((item, index) => (
+              <SortablePlaylistItem 
+                key={item.id} 
+                item={item} 
+                index={index} 
+                onDelete={(id) => setItemToDelete(id)}
+                onChange={handleItemChange}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
         
         {playlist.length === 0 && (
             <p className="text-center text-muted-foreground p-4 text-sm">No items in playlist.</p>

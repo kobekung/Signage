@@ -22,9 +22,10 @@ export default function RightSidebar() {
     }
   };
 
+  // [FIX] เพิ่ม h-full เพื่อให้ Sidebar สูงเต็มจอและ ScrollArea ทำงานได้ถูกต้อง
   return (
-    <aside className="w-80 border-l bg-card flex flex-col">
-      <div className="h-16 flex items-center justify-between px-4 border-b">
+    <aside className="w-80 border-l bg-card flex flex-col h-full">
+      <div className="h-16 flex items-center justify-between px-4 border-b shrink-0">
         <h3 className="font-semibold text-lg">Properties</h3>
         {selectedWidget && (
           <TooltipProvider>
@@ -41,6 +42,7 @@ export default function RightSidebar() {
           </TooltipProvider>
         )}
       </div>
+      {/* flex-1 จะทำงานได้เมื่อ parent (aside) มีความสูงที่แน่นอน (h-full) */}
       <ScrollArea className="flex-1">
         {selectedWidget ? (
           <PropertiesPanel widget={selectedWidget} key={selectedWidget.id} />
@@ -53,5 +55,3 @@ export default function RightSidebar() {
     </aside>
   );
 }
-
-    
