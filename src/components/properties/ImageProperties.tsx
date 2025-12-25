@@ -5,10 +5,12 @@ import { useEditorStore } from '@/stores';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Trash2, Plus, Upload, Loader2, MapPin, Maximize, GripVertical } from 'lucide-react';
+import { 
+  Trash2, Plus, Upload, Loader2, MapPin, Maximize, 
+  GripVertical, PlayCircle, ImageIcon, Film, Clock, Settings2
+} from 'lucide-react';
 import { useDebouncedCallback } from 'use-debounce';
 import { useRef, useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
@@ -20,6 +22,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // --- DND Kit Imports ---
 import {
@@ -48,7 +55,41 @@ const BASE_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const CLEAN_BASE_API = BASE_API.replace(/\/$/, ''); 
 const API_UPLOAD_URL = `${CLEAN_BASE_API}/upload`;
 
-// --- Sortable Item Component (ตัวจัดการแต่ละรายการให้ลากได้) ---
+// --- Thumbnail Component ---
+const MediaThumbnail = ({ url, type }: { url: string; type: 'image' | 'video' }) => {
+  if (type === 'video') {
+    return (
+      <div className="relative w-full h-full bg-black group select-none">
+        {/* เทคนิค: ใส่ #t=0.5 เพื่อดึงเฟรมที่ 0.5 วินาทีมาแสดงเป็นปก */}
+        <video 
+          src={`${url}#t=0.5`} 
+          className="w-full h-full object-cover opacity-80"
+          preload="metadata"
+          muted 
+          playsInline
+          disablePictureInPicture
+          style={{ pointerEvents: 'none' }} 
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="bg-black/50 rounded-full p-1">
+             <PlayCircle size={12} className="text-white" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={url} 
+      alt="thumbnail" 
+      className="w-full h-full object-cover select-none" 
+      loading="lazy"
+    />
+  );
+};
+
+// --- Sortable Item Component ---
 interface SortableItemProps {
   item: PlaylistItem;
   index: number;
@@ -57,7 +98,6 @@ interface SortableItemProps {
 }
 
 function SortablePlaylistItem({ item, index, onDelete, onChange }: SortableItemProps) {
-  // Hook ของ dnd-kit สำหรับทำให้ element นี้ลากได้
   const {
     attributes,
     listeners,
@@ -79,85 +119,118 @@ function SortablePlaylistItem({ item, index, onDelete, onChange }: SortableItemP
     <div
       ref={setNodeRef}
       style={style}
-      className={`p-3 border rounded-lg space-y-3 ${isDragging ? 'bg-blue-50 border-blue-200' : 'bg-muted/20'}`}
+      className={`group flex items-center gap-3 p-2 border rounded-lg transition-all shadow-sm ${
+        isDragging ? 'bg-blue-50 border-blue-200' : 'bg-background hover:border-primary/50'
+      }`}
     >
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2 overflow-hidden">
-          {/* ปุ่ม Grip สำหรับจับลาก */}
-          <div
-            {...attributes}
-            {...listeners}
-            className="cursor-grab hover:text-blue-600 text-muted-foreground flex-shrink-0 touch-none p-1"
-          >
-            <GripVertical size={18} />
+      {/* 1. Grip Handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab hover:text-primary text-muted-foreground flex-shrink-0 touch-none p-1"
+      >
+        <GripVertical size={16} />
+      </div>
+
+      {/* 2. Thumbnail */}
+      <div className="w-16 h-9 bg-slate-100 rounded overflow-hidden border shrink-0 relative">
+        <MediaThumbnail url={item.url} type={item.type} />
+      </div>
+
+      {/* 3. Info & Quick Settings */}
+      <div className="flex-1 min-w-0 grid gap-1">
+          {/* Type Label */}
+          <div className="flex items-center gap-2">
+            {item.type === 'video' 
+                ? <Film size={12} className="text-blue-500" /> 
+                : <ImageIcon size={12} className="text-green-500" />
+            }
+            <span className="text-xs font-medium truncate text-muted-foreground">
+                {item.type === 'video' ? 'Video' : 'Image'} {index + 1}
+            </span>
           </div>
 
-          <Label className="font-semibold truncate pr-2">
-            Item {index + 1}: {item.type}
-          </Label>
-        </div>
-        
+          {/* Duration Input */}
+          <div className="flex items-center gap-2">
+            <Clock size={12} className="text-muted-foreground" />
+            <div className="flex items-center gap-1">
+                <Input
+                    type="number"
+                    className="h-5 w-14 text-[11px] px-1 text-right focus-visible:ring-1"
+                    value={item.duration || 10}
+                    onChange={(e) => onChange(item.id, 'duration', Number(e.target.value))}
+                    onKeyDown={(e) => e.stopPropagation()} // ป้องกัน event ชนกับ dnd
+                    onPointerDown={(e) => e.stopPropagation()}
+                />
+                <span className="text-[10px] text-muted-foreground">sec</span>
+            </div>
+          </div>
+      </div>
+
+      {/* 4. Actions (Settings Popover & Delete) */}
+      <div className="flex items-center gap-1">
+        {/* Advanced Settings Popover */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              <Settings2 size={14} />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-3" align="end">
+            <div className="space-y-3">
+              <h5 className="font-medium text-xs text-muted-foreground flex items-center gap-2">
+                <Settings2 size={12} /> Advanced Settings
+              </h5>
+              
+              {/* URL Display */}
+              <div className="space-y-1">
+                <Label className="text-[10px]">Source URL</Label>
+                <Input 
+                  value={item.url} 
+                  readOnly 
+                  className="h-7 text-xs bg-muted text-muted-foreground" 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                 {/* Location ID */}
+                 <div className="space-y-1">
+                    <Label className="text-[10px] flex items-center gap-1">
+                      <MapPin size={10} /> Location ID
+                    </Label>
+                    <Input 
+                      className="h-7 text-xs" 
+                      placeholder="e.g. 100"
+                      value={item.locationId || ''}
+                      onChange={(e) => onChange(item.id, 'locationId', e.target.value)}
+                    />
+                 </div>
+                 
+                 {/* Fullscreen Toggle */}
+                 <div className="space-y-1 flex flex-col items-start">
+                    <Label className="text-[10px] flex items-center gap-1 mb-1.5">
+                      <Maximize size={10} /> Fullscreen
+                    </Label>
+                    <Switch 
+                      className="scale-75 origin-left"
+                      checked={item.fullscreen || false}
+                      onCheckedChange={(val) => onChange(item.id, 'fullscreen', val)}
+                    />
+                 </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Delete Button */}
         <Button 
           variant="ghost" 
           size="icon" 
-          className="h-7 w-7 flex-shrink-0 hover:bg-red-100 hover:text-red-600" 
+          className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50" 
           onClick={() => onDelete(item.id)}
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 size={14} />
         </Button>
-      </div>
-      
-      <div className="grid grid-cols-3 gap-2 pl-6"> {/* เพิ่ม padding ซ้ายให้ตรงกับแนว grip */}
-        <div className="col-span-2 space-y-1">
-          <Label htmlFor={`url-${item.id}`} className="text-xs">URL</Label>
-          <Input
-            id={`url-${item.id}`}
-            value={item.url}
-            readOnly
-            className="h-8 bg-white"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor={`duration-${item.id}`} className="text-xs">Sec</Label>
-          <Input
-            id={`duration-${item.id}`}
-            type="number"
-            value={item.duration}
-            onChange={(e) => onChange(item.id, 'duration', Number(e.target.value))}
-            className="h-8"
-          />
-        </div>
-      </div>
-
-      {/* Trigger Settings */}
-      <div className="pt-2 border-t border-muted-foreground/20 pl-6">
-        <div className="flex items-center gap-2 mb-2 text-xs text-blue-600 font-semibold">
-          <MapPin size={12} />
-          <span>Trigger Settings</span>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-[10px]">Location ID</Label>
-            <Input 
-              className="h-7 text-xs" 
-              placeholder="e.g. 100"
-              value={item.locationId || ''}
-              onChange={(e) => onChange(item.id, 'locationId', e.target.value)}
-            />
-          </div>
-          <div className="flex items-end justify-end pb-1">
-             <div className="flex items-center gap-2">
-              <Label className="text-[10px] flex items-center gap-1">
-                <Maximize size={10} /> Fullscreen
-              </Label>
-              <Switch 
-                className="scale-75"
-                checked={item.fullscreen || false}
-                onCheckedChange={(val) => onChange(item.id, 'fullscreen', val)}
-              />
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -174,11 +247,11 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-  // ตั้งค่า Sensor สำหรับรับ input การลาก (Mouse/Touch)
+  // DND Sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
         activationConstraint: {
-            distance: 5, // ต้องลากเกิน 5px ถึงจะเริ่มทำงาน (ป้องกันการคลิกผิด)
+            distance: 5, 
         }
     }),
     useSensor(KeyboardSensor, {
@@ -202,7 +275,6 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
     updateProperties({ playlist: newPlaylist });
   };
 
-  // ฟังก์ชันจัดการเมื่อลากเสร็จ (สลับตำแหน่งใน Array)
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -244,6 +316,16 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const getVideoDuration = (url: string): Promise<number> => {
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => resolve(video.duration);
+        video.onerror = () => reject("Error loading video metadata.");
+        video.src = url;
+    });
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,35 +384,8 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
     if(fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const getVideoDuration = (url: string): Promise<number> => {
-    return new Promise((resolve, reject) => {
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = () => resolve(video.duration);
-        video.onerror = () => reject("Error loading video metadata.");
-        video.src = url;
-    });
-  };
-
   return (
     <div className="space-y-4">
-      {/* <div className="space-y-2">
-        <Label>Fit Mode</Label>
-         <Select
-          value={properties.fitMode || 'fill'}
-          onValueChange={(value: 'cover' | 'contain' | 'fill') => updateProperties({ fitMode: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select fit mode" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="fill">Fill (Stretch)</SelectItem>
-            <SelectItem value="cover">Cover (No Distortion)</SelectItem>
-            <SelectItem value="contain">Contain (Fit Inside)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div> */}
-
       <div className="flex justify-between items-center">
         <h4 className="font-medium text-md">Playlist Manager</h4>
         <div className="flex gap-2">
@@ -352,14 +407,14 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
       </div>
 
       {/* Playlist Items with Drag & Drop */}
-      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
         <DndContext 
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
           <SortableContext 
-            items={playlist.map(item => item.id)} // ส่ง ID ของ item ทั้งหมด
+            items={playlist.map(item => item.id)} 
             strategy={verticalListSortingStrategy}
           >
             {playlist.map((item, index) => (
@@ -375,11 +430,15 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
         </DndContext>
         
         {playlist.length === 0 && (
-            <p className="text-center text-muted-foreground p-4 text-sm">No items in playlist.</p>
+            <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground bg-muted/20">
+                <ImageIcon className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                <p className="text-sm">No items in playlist</p>
+                <p className="text-xs opacity-70">Add URL or Upload Media</p>
+            </div>
         )}
       </div>
 
-      {/* AlertDialog สำหรับยืนยันการลบ */}
+      {/* AlertDialog */}
       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -393,7 +452,7 @@ export default function ImageProperties({ widget }: ImagePropertiesProps) {
             <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete} 
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              className="bg-red-600 hover:bg-red-700"
             >
               Confirm deletion
             </AlertDialogAction>
